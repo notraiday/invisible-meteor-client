@@ -1,18 +1,21 @@
-name: Java CI with Gradle
+name: Dev Build
+
+concurrency:
+  group: "build"
+  cancel-in-progress: false
 
 on:
   push:
-    branches: [ master-ame ]
+    branches:
+      - master-ame
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up JDK
-        uses: actions/setup-java@v2
+      - uses: actions/checkout@v3
+      - uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -20,12 +23,7 @@ jobs:
         uses: gradle/gradle-build-action@v2
         with:
           gradle-version: current
-          arguments: build
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v1
-        with:
-          name: build-artifacts
-          path: build/libs
+          arguments: build -Pcommit=${{ github.sha }}
       - uses: "marvinpinto/action-automatic-releases@latest"
         with:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"

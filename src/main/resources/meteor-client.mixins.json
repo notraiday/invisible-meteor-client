@@ -124,7 +124,6 @@
     "PlayerMoveC2SPacketMixin",
     "PlayerPositionLookS2CPacketAccessor",
     "PowderSnowBlockMixin",
-    "ProfileKeysMixin",
     "ProjectileEntityAccessor",
     "ProjectileInGroundAccessor",
     "RaycastContextMixin",
