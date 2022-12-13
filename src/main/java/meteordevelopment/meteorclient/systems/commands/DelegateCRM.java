@@ -5,34 +5,44 @@
 
 package meteordevelopment.meteorclient.systems.commands;
 
+import meteordevelopment.meteorclient.MeteorClient;
 import net.minecraft.command.*;
-import net.minecraft.tag.*;
-import net.minecraft.util.registry.*;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.entry.RegistryEntryList;
+import net.minecraft.registry.tag.*;
+import net.minecraft.registry.*;
 
 import java.util.*;
 import java.util.stream.*;
 
-public class DelegateCRM extends CommandRegistryAccess {
+public class DelegateCRM implements CommandRegistryAccess, CommandRegistryAccess.EntryListCreationPolicySettable {
     private CommandRegistryAccess delegate;
-
-    public DelegateCRM() {
-        super(null);
-    }
+    private EntryListCreationPolicy entryListCreationPolicy;
 
     @Override
-    public <T> CommandRegistryWrapper<T> createWrapper(RegistryKey<? extends Registry<T>> registryRef) {
-        return new CommandRegistryWrapper<T>() {
-            CommandRegistryWrapper<T> delegateWrapper;
+    public <T> RegistryWrapper<T> createWrapper(RegistryKey<? extends Registry<T>> registryRef) {
+        return new RegistryWrapper<T>() {
+            RegistryWrapper<T> delegateWrapper;
 
-            private CommandRegistryWrapper<T> getDelegate() {
+            private RegistryWrapper<T> getDelegate() {
                 if (delegateWrapper != null) return delegateWrapper;
                 if (delegate == null) throw new NullPointerException("Got null pointer delegate in command construction");
                 return delegateWrapper = delegate.createWrapper(registryRef);
             }
 
             @Override
-            public Optional<RegistryEntry<T>> getEntry(RegistryKey<T> key) {
-                return getDelegate().getEntry(key);
+            public Optional<RegistryEntry.Reference<T>> getOptional(RegistryKey<T> key) {
+                return getDelegate().getOptional(key);
+            }
+
+            @Override
+            public Optional<RegistryEntryList.Named<T>> getOptional(TagKey<T> tag) {
+                return getDelegate().getOptional(tag);
+            }
+
+            @Override
+            public Stream<RegistryEntry.Reference<T>> streamEntries() {
+                return getDelegate().streamEntries();
             }
 
             @Override
@@ -41,12 +51,7 @@ public class DelegateCRM extends CommandRegistryAccess {
             }
 
             @Override
-            public Optional<? extends RegistryEntryList<T>> getEntryList(TagKey<T> tag) {
-                return getDelegate().getEntryList(tag);
-            }
-
-            @Override
-            public Stream<TagKey<T>> streamTags() {
+            public Stream<RegistryEntryList.Named<T>> streamTags() {
                 return getDelegate().streamTags();
             }
         };
@@ -54,6 +59,17 @@ public class DelegateCRM extends CommandRegistryAccess {
 
     public void setDelegate(CommandRegistryAccess delegate) {
         this.delegate = delegate;
-        delegate.setEntryListCreationPolicy(entryListCreationPolicy);
+        if (entryListCreationPolicy != null) {
+            if (delegate instanceof EntryListCreationPolicySettable elcps) {
+                elcps.setEntryListCreationPolicy(entryListCreationPolicy);
+            } else {
+                MeteorClient.LOG.error("Could not set up delegate CRM: not an EntryListCreationPolicySettable");
+            }
+        }
+    }
+
+    @Override
+    public void setEntryListCreationPolicy(EntryListCreationPolicy entryListCreationPolicy) {
+        this.entryListCreationPolicy = entryListCreationPolicy;
     }
 }

@@ -72,7 +72,7 @@ public abstract class Command {
     }
 
     public String toString() {
-        return Config.get().prefix.get() + name;
+        return "/m " + name;
     }
 
     public String toString(String... args) {

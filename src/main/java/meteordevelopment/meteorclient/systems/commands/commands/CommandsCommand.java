@@ -44,12 +44,12 @@ public class CommandsCommand extends Command {
 
         tooltip.append(Text.literal(Utils.nameToTitle(command.getName())).formatted(Formatting.BLUE, Formatting.BOLD)).append("\n");
 
-        MutableText aliases = Text.literal(Config.get().prefix.get() + command.getName());
+        MutableText aliases = Text.literal(command.getName());
         if (command.getAliases().size() > 0) {
             aliases.append(", ");
             for (String alias : command.getAliases()) {
                 if (alias.isEmpty()) continue;
-                aliases.append(Config.get().prefix.get() + alias);
+                aliases.append(alias);
                 if (!alias.equals(command.getAliases().get(command.getAliases().size() - 1))) aliases.append(", ");
             }
         }
@@ -63,7 +63,7 @@ public class CommandsCommand extends Command {
         text.setStyle(text
                 .getStyle()
                 .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, tooltip))
-                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, Config.get().prefix.get() + command.getName()))
+                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/m " + command.getName()))
         );
 
         return text;

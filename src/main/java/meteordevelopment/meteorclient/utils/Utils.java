@@ -33,28 +33,31 @@ import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.client.resource.ResourceReloadLogger;
 import net.minecraft.enchantment.Enchantment;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.item.*;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.registry.Registries;
 import net.minecraft.util.DyeColor;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Matrix4f;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.registry.Registry;
 import net.minecraft.world.chunk.Chunk;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.SystemUtils;
 import org.jetbrains.annotations.Range;
+import org.joml.Matrix4f;
+import org.joml.Vector3d;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
@@ -68,6 +71,8 @@ public class Utils {
     public static boolean rendering3D = true;
     public static double frameTime;
     public static Screen screenToOpen;
+
+    public static final Pattern FILE_NAME_INVALID_CHARS_PATTERN = Pattern.compile("[\\s\\\\/:*?\"<>|]");
 
     @PreInit
     public static void init() {
@@ -126,7 +131,7 @@ public class Utils {
             for (int i = 0; i < listTag.size(); ++i) {
                 NbtCompound tag = listTag.getCompound(i);
 
-                Registry.ENCHANTMENT.getOrEmpty(Identifier.tryParse(tag.getString("id"))).ifPresent((enchantment) -> enchantments.put(enchantment, tag.getInt("lvl")));
+                Registries.ENCHANTMENT.getOrEmpty(Identifier.tryParse(tag.getString("id"))).ifPresent((enchantment) -> enchantments.put(enchantment, tag.getInt("lvl")));
             }
         }
     }
@@ -154,12 +159,12 @@ public class Utils {
     }
 
     public static void unscaledProjection() {
-        RenderSystem.setProjectionMatrix(Matrix4f.projectionMatrix(0, mc.getWindow().getFramebufferWidth(), 0, mc.getWindow().getFramebufferHeight(), 1000, 3000));
+        RenderSystem.setProjectionMatrix(new Matrix4f().setOrtho(0, mc.getWindow().getFramebufferWidth(), mc.getWindow().getFramebufferHeight(), 0, 1000, 3000));
         rendering3D = false;
     }
 
     public static void scaledProjection() {
-        RenderSystem.setProjectionMatrix(Matrix4f.projectionMatrix(0, (float) (mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaleFactor()), 0, (float) (mc.getWindow().getFramebufferHeight() / mc.getWindow().getScaleFactor()), 1000, 3000));
+        RenderSystem.setProjectionMatrix(new Matrix4f().setOrtho(0, (float) (mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaleFactor()), (float) (mc.getWindow().getFramebufferHeight() / mc.getWindow().getScaleFactor()), 0, 1000, 3000));
         rendering3D = true;
     }
 
@@ -205,15 +210,17 @@ public class Utils {
     }
 
     public static Color getShulkerColor(ItemStack shulkerItem) {
-        if (!(shulkerItem.getItem() instanceof BlockItem)) return WHITE;
-        Block block = ((BlockItem) shulkerItem.getItem()).getBlock();
-        if (block == Blocks.ENDER_CHEST) return BetterTooltips.ECHEST_COLOR;
-        if (!(block instanceof ShulkerBoxBlock)) return WHITE;
-        ShulkerBoxBlock shulkerBlock = (ShulkerBoxBlock) ShulkerBoxBlock.getBlockFromItem(shulkerItem.getItem());
-        DyeColor dye = shulkerBlock.getColor();
-        if (dye == null) return WHITE;
-        final float[] colors = dye.getColorComponents();
-        return new Color(colors[0], colors[1], colors[2], 1f);
+        if (shulkerItem.getItem() instanceof BlockItem blockItem) {
+            Block block = blockItem.getBlock();
+            if (block == Blocks.ENDER_CHEST) return BetterTooltips.ECHEST_COLOR;
+            if (block instanceof ShulkerBoxBlock shulkerBlock) {
+                DyeColor dye = shulkerBlock.getColor();
+                if (dye == null) return WHITE;
+                final float[] colors = dye.getColorComponents();
+                return new Color(colors[0], colors[1], colors[2], 1f);
+            }
+        }
+        return WHITE;
     }
 
     public static boolean hasItems(ItemStack itemStack) {
@@ -222,9 +229,9 @@ public class Utils {
     }
 
     public static Object2IntMap<StatusEffect> createStatusEffectMap() {
-        Object2IntMap<StatusEffect> map = new Object2IntArrayMap<>(Registry.STATUS_EFFECT.getIds().size());
+        Object2IntMap<StatusEffect> map = new Object2IntArrayMap<>(Registries.STATUS_EFFECT.getIds().size());
 
-        Registry.STATUS_EFFECT.forEach(potion -> map.put(potion, 0));
+        Registries.STATUS_EFFECT.forEach(potion -> map.put(potion, 0));
 
         return map;
     }
@@ -266,12 +273,6 @@ public class Utils {
         // Populate matrix
         int[][] d = new int[textLength + 1][filterLength + 1];
 
-        for (int i = 0; i < textLength; i++) {
-            for (int j = 0; j < filterLength; j++) {
-                d[i][j] = 0;
-            }
-        }
-
         for (int i = 0; i <= textLength; i++) {
             d[i][0] = i * delCost;
         }
@@ -307,6 +308,10 @@ public class Utils {
         return Math.sqrt(dX * dX + dY * dY + dZ * dZ);
     }
 
+    public static String getFileWorldName() {
+        return FILE_NAME_INVALID_CHARS_PATTERN.matcher(getWorldName()).replaceAll("_");
+    }
+
     public static String getWorldName() {
         // Singleplayer
         if (mc.isInSingleplayer()) {
@@ -321,11 +326,7 @@ public class Utils {
 
         // Multiplayer
         if (mc.getCurrentServerEntry() != null) {
-            String name = mc.isConnectedToRealms() ? "realms" : mc.getCurrentServerEntry().address;
-            if (SystemUtils.IS_OS_WINDOWS) {
-                name = name.replace(":", "_");
-            }
-            return name;
+            return mc.isConnectedToRealms() ? "realms" : mc.getCurrentServerEntry().address;
         }
 
         return "";
@@ -502,7 +503,7 @@ public class Utils {
         }
 
         // Check if item already has the enchantment and modify the level
-        String enchId = Registry.ENCHANTMENT.getId(enchantment).toString();
+        String enchId = Registries.ENCHANTMENT.getId(enchantment).toString();
 
         for (NbtElement _t : listTag) {
             NbtCompound t = (NbtCompound) _t;
@@ -533,7 +534,7 @@ public class Utils {
         if (!nbt.contains("Enchantments", 9)) return;
         NbtList list = nbt.getList("Enchantments", 10);
 
-        String enchId = Registry.ENCHANTMENT.getId(enchantment).toString();
+        String enchId = Registries.ENCHANTMENT.getId(enchantment).toString();
 
         for (Iterator<NbtElement> it = list.iterator(); it.hasNext();) {
             NbtCompound ench = (NbtCompound) it.next();
@@ -600,6 +601,22 @@ public class Utils {
         if (port <= 0 || port > 65535 || address == null || address.isBlank()) return false;
         InetSocketAddress socketAddress = new InetSocketAddress(address, port);
         return !socketAddress.isUnresolved();
+    }
+
+    public static Vector3d set(Vector3d vec, Vec3d v) {
+        vec.x = v.x;
+        vec.y = v.y;
+        vec.z = v.z;
+
+        return vec;
+    }
+
+    public static Vector3d set(Vector3d vec, Entity entity, double tickDelta) {
+        vec.x = MathHelper.lerp(tickDelta, entity.lastRenderX, entity.getX());
+        vec.y = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY());
+        vec.z = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ());
+
+        return vec;
     }
 
     // Filters

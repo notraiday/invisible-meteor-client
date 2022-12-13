@@ -172,10 +172,10 @@ public class NoRender extends Module {
     );
 
     private final Setting<Boolean> noBlindness = sgWorld.add(new BoolSetting.Builder()
-    .name("blindness")
-    .description("Disables rendering of blindness.")
-    .defaultValue(false)
-    .build()
+        .name("blindness")
+        .description("Disables rendering of blindness.")
+        .defaultValue(false)
+        .build()
     );
 
     private final Setting<Boolean> noDarkness = sgWorld.add(new BoolSetting.Builder()
@@ -283,6 +283,13 @@ public class NoRender extends Module {
         .build()
     );
 
+    private final Setting<Boolean> dropSpawnPacket = sgEntity.add(new BoolSetting.Builder()
+        .name("drop-spawn-packets")
+        .description("WARNING! Drops all spawn packets of entities selected in the above list.")
+        .defaultValue(false)
+        .build()
+    );
+
     private final Setting<Boolean> noArmor = sgEntity.add(new BoolSetting.Builder()
         .name("armor")
         .description("Disables rendering of armor on entities.")
@@ -293,6 +300,13 @@ public class NoRender extends Module {
     private final Setting<Boolean> noInvisibility = sgEntity.add(new BoolSetting.Builder()
         .name("invisibility")
         .description("Shows invisible entities.")
+        .defaultValue(false)
+        .build()
+    );
+
+    private final Setting<Boolean> noGlowing = sgEntity.add(new BoolSetting.Builder()
+        .name("glowing")
+        .description("Disables rendering of the glowing effect")
         .defaultValue(false)
         .build()
     );
@@ -479,12 +493,24 @@ public class NoRender extends Module {
         return isActive() && entities.get().getBoolean(entity.getType());
     }
 
+    public boolean noEntity(EntityType<?> entity) {
+        return isActive() && entities.get().getBoolean(entity);
+    }
+
+    public boolean getDropSpawnPacket() {
+        return isActive() && dropSpawnPacket.get();
+    }
+
     public boolean noArmor() {
         return isActive() && noArmor.get();
     }
 
     public boolean noInvisibility() {
         return isActive() && noInvisibility.get();
+    }
+
+    public boolean noGlowing() {
+        return isActive() && noGlowing.get();
     }
 
     public boolean noMobInSpawner() {

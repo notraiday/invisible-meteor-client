@@ -22,6 +22,8 @@ import net.fabricmc.fabric.api.client.command.v2.*;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientCommandSource;
 import net.minecraft.command.*;
+import net.minecraft.registry.BuiltinRegistries;
+import net.minecraft.server.command.CommandManager;
 
 import java.util.*;
 
@@ -76,6 +78,7 @@ public class Commands extends System<Commands> {
         add(new FOVCommand());
         add(new RotationCommand());
         add(new WaypointCommand());
+        add(new InputCommand());
 
         commands.sort(Comparator.comparing(Command::getName));
 
