@@ -72,6 +72,3 @@ accessible   class   net/minecraft/client/resource/ResourceReloadLogger$ReloadSt
 accessible   field   net/minecraft/block/AbstractBlock collidable Z
 
 accessible   field   net/minecraft/item/ItemGroups INVENTORY Lnet/minecraft/item/ItemGroup;
-
-extendable   class   net/minecraft/command/CommandRegistryAccess
-accessible   field   net/minecraft/command/CommandRegistryAccess entryListCreationPolicy Lnet/minecraft/command/CommandRegistryAccess$EntryListCreationPolicy;
