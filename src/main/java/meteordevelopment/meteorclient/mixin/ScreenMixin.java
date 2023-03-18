@@ -5,6 +5,9 @@
 
 package meteordevelopment.meteorclient.mixin;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import meteordevelopment.meteorclient.systems.commands.Commands;
+import meteordevelopment.meteorclient.systems.config.Config;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.systems.modules.render.NoRender;
 import meteordevelopment.meteorclient.utils.Utils;
@@ -12,15 +15,17 @@ import meteordevelopment.meteorclient.utils.tooltip.MeteorTooltipData;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.tooltip.TooltipComponent;
 import net.minecraft.client.item.TooltipData;
+import net.minecraft.text.Style;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.List;
 
-@Mixin(Screen.class)
+@Mixin(value = Screen.class, priority = 500) // needs to be before baritone
 public abstract class ScreenMixin {
     @Inject(method = "renderBackground(Lnet/minecraft/client/util/math/MatrixStack;)V", at = @At("HEAD"), cancellable = true)
     private void onRenderBackground(CallbackInfo info) {

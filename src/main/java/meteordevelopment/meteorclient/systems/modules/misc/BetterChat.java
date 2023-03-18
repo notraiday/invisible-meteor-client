@@ -12,7 +12,6 @@ import meteordevelopment.meteorclient.events.game.SendMessageEvent;
 import meteordevelopment.meteorclient.mixin.ChatHudAccessor;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.commands.Commands;
-import meteordevelopment.meteorclient.systems.commands.commands.SayCommand;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
@@ -70,6 +69,13 @@ public class BetterChat extends Module {
     private final Setting<Boolean> coordsProtection = sgGeneral.add(new BoolSetting.Builder()
         .name("coords-protection")
         .description("Prevents you from sending messages in chat that may contain coordinates.")
+        .defaultValue(true)
+        .build()
+    );
+
+    public final Setting<Boolean> antiHistClear = sgGeneral.add(new BoolSetting.Builder()
+        .name("keep-history")
+        .description("Prevents the chat history from being cleared when disconnecting.")
         .defaultValue(true)
         .build()
     );
@@ -298,10 +304,11 @@ public class BetterChat extends Module {
             ((ChatHudAccessor) mc.inGameHud.getChatHud()).getMessages().remove(messageIndex);
 
             List<OrderedText> list = ChatMessages.breakRenderedChatMessageLines(originalMessage, MathHelper.floor((double)mc.inGameHud.getChatHud().getWidth() / mc.inGameHud.getChatHud().getChatScale()), mc.textRenderer);
-            int lines = list.size();
+            List<ChatHudLine.Visible> visibleMessages = ((ChatHudAccessor) mc.inGameHud.getChatHud()).getVisibleMessages();
+            int lines = Math.min(list.size(), visibleMessages.size());
 
             for (int i = 0; i < lines; i++) {
-                ((ChatHudAccessor) mc.inGameHud.getChatHud()).getVisibleMessages().remove(messageIndex);
+                visibleMessages.remove(messageIndex);
             }
         }
 
@@ -414,7 +421,7 @@ public class BetterChat extends Module {
             .withFormatting(Formatting.DARK_RED)
             .withClickEvent(new ClickEvent(
                 ClickEvent.Action.RUN_COMMAND,
-                Commands.get().get(SayCommand.class).toString(message)
+                Commands.get().get("say").toString(message)
             ))
             .withHoverEvent(new HoverEvent(
                 HoverEvent.Action.SHOW_TEXT,

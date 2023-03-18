@@ -21,4 +21,7 @@ public class KeyBinds {
     public static int getKey(KeyBinding bind) {
         return ((KeyBindingAccessor) bind).getKey().getCode();
     }
+
+    public static void ensureInitialized() {
+    }
 }

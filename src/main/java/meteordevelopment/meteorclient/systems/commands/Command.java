@@ -77,9 +77,7 @@ public abstract class Command {
 
     public String toString(String... args) {
         StringBuilder base = new StringBuilder(toString());
-        for (String arg : args)
-            base.append(' ').append(arg);
-
+        for (String arg : args) base.append(' ').append(arg);
         return base.toString();
     }
 
@@ -90,16 +88,16 @@ public abstract class Command {
 
     public void info(String message, Object... args) {
         ChatUtils.forceNextPrefixClass(getClass());
-        ChatUtils.info(title, message, args);
+        ChatUtils.infoPrefix(title, message, args);
     }
 
     public void warning(String message, Object... args) {
         ChatUtils.forceNextPrefixClass(getClass());
-        ChatUtils.warning(title, message, args);
+        ChatUtils.warningPrefix(title, message, args);
     }
 
     public void error(String message, Object... args) {
         ChatUtils.forceNextPrefixClass(getClass());
-        ChatUtils.error(title, message, args);
+        ChatUtils.errorPrefix(title, message, args);
     }
 }

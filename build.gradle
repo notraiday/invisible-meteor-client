@@ -1,7 +1,7 @@
 plugins {
-    id 'fabric-loom' version '1.0-SNAPSHOT'
-    id 'maven-publish'
-    id 'com.github.johnrengelman.shadow' version '7.1.2'
+    id "fabric-loom" version "1.1-SNAPSHOT"
+    id "maven-publish"
+    id "com.github.johnrengelman.shadow" version "7.1.2"
 }
 
 sourceCompatibility = targetCompatibility = JavaVersion.VERSION_17
@@ -45,11 +45,11 @@ configurations {
 
 dependencies {
 	// Fabric
-	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
-	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
-	// Fabric API
+    // Fabric API
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.fapi_version}")
     shadow(fabricApi.module("fabric-api-base", project.fapi_version)) {
         transitive = false
@@ -57,6 +57,7 @@ dependencies {
 
 	// Compat fixes
     modCompileOnly("maven.modrinth:sodium:${project.sodium_version}") { transitive = false }
+    modCompileOnly("maven.modrinth:lithium:${project.lithium_version}") { transitive = false }
     //modCompileOnly("io.vram:canvas-fabric-mc119:1.0.+") { transitive = false } // TODO: 1.19.3
 
 	// Baritone (https://github.com/MeteorDevelopment/baritone)
@@ -86,6 +87,12 @@ afterEvaluate {
 
 shadowJar {
 	configurations = [ project.configurations.shadow ]
+
+    dependencies {
+        exclude {
+            it.moduleGroup == "org.slf4j"
+        }
+    }
 }
 
 processResources {
@@ -104,7 +111,7 @@ remapJar {
 }
 
 javadoc {
-    options.addStringOption('Xdoclint:none', '-quiet')
+    options.addStringOption("Xdoclint:none", "-quiet")
     options.encoding = "UTF-8"
 }
 

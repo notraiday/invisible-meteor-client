@@ -5,7 +5,7 @@
 
 package meteordevelopment.meteorclient.utils.network;
 
-import net.minecraft.network.Packet;
+import net.minecraft.network.packet.Packet;
 import org.reflections.Reflections;
 import org.reflections.scanners.Scanners;
 
@@ -156,10 +156,18 @@ public class PacketUtilsUtil {
     }
 """;
 
-//    @PostInit
+    public static void main(String[] args) {
+        try {
+            init();
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static void init() throws IOException {
         // Generate PacketUtils.java
-        File file = new File(System.getProperty("user.dir") + "/PacketUtils.java");
+        File file = new File("src/main/java/" + PacketUtilsUtil.class.getPackageName().replace('.', '/') + "/PacketUtils.java");
         if (!file.exists()) {
             file.getParentFile().mkdirs();
             file.createNewFile();
@@ -179,7 +187,7 @@ public class PacketUtilsUtil {
         writer.write("import com.mojang.datafixers.util.Pair;\n");
         writer.write("import com.mojang.serialization.Lifecycle;\n");
         writer.write("import meteordevelopment.meteorclient.utils.misc.MeteorIdentifier;\n");
-        writer.write("import net.minecraft.network.Packet;\n");
+        writer.write("import net.minecraft.network.packet.Packet;\n");
         writer.write("import net.minecraft.registry.Registry;\n");
         writer.write("import net.minecraft.registry.RegistryKey;\n");
         writer.write("import net.minecraft.registry.SimpleRegistry;\n");

@@ -31,14 +31,13 @@ public class NotebotSongArgumentType implements ArgumentType<Path> {
     public Path parse(StringReader reader) throws CommandSyntaxException {
         final String text = reader.getRemaining();
         reader.setCursor(reader.getTotalLength());
-        System.out.println("READER: " + text);
         return MeteorClient.FOLDER.toPath().resolve("notebot/" + text);
     }
 
     @Override
     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, SuggestionsBuilder builder) {
-        try {
-            return CommandSource.suggestMatching(Files.list(MeteorClient.FOLDER.toPath().resolve("notebot"))
+        try (var suggestions = Files.list(MeteorClient.FOLDER.toPath().resolve("notebot"))) {
+            return CommandSource.suggestMatching(suggestions
                     .filter(SongDecoders::hasDecoder)
                     .map(path -> path.getFileName().toString()),
                 builder

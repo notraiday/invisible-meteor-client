@@ -8,20 +8,15 @@ package meteordevelopment.meteorclient.systems.commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import com.mojang.brigadier.tree.*;
+import com.mojang.brigadier.tree.CommandNode;
 import meteordevelopment.meteorclient.systems.System;
 import meteordevelopment.meteorclient.systems.Systems;
 import meteordevelopment.meteorclient.systems.commands.commands.*;
-import meteordevelopment.meteorclient.systems.commands.commands.EnchantCommand;
-import meteordevelopment.meteorclient.systems.commands.commands.GiveCommand;
-import meteordevelopment.meteorclient.systems.commands.commands.LocateCommand;
-import meteordevelopment.meteorclient.systems.commands.commands.ReloadCommand;
-import meteordevelopment.meteorclient.systems.commands.commands.SayCommand;
-import meteordevelopment.meteorclient.systems.commands.commands.SpectateCommand;
-import net.fabricmc.fabric.api.client.command.v2.*;
-import net.minecraft.client.MinecraftClient;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.network.ClientCommandSource;
-import net.minecraft.command.*;
+import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.command.CommandSource;
 import net.minecraft.registry.BuiltinRegistries;
 import net.minecraft.server.command.CommandManager;
 
@@ -31,9 +26,11 @@ import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 public class Commands extends System<Commands> {
     public static final DelegateCRM REGISTRY_ACCESS = new DelegateCRM();
-    private final CommandDispatcher<FabricClientCommandSource> DISPATCHER = new CommandDispatcher<>();
+
+    public static final CommandDispatcher<FabricClientCommandSource> DISPATCHER = new CommandDispatcher<>();
+    public static final FabricClientCommandSource COMMAND_SOURCE = (FabricClientCommandSource) new ClientCommandSource(null, mc);
+
     private final List<Command> commands = new ArrayList<>();
-    private final Map<Class<? extends Command>, Command> commandInstances = new HashMap<>();
 
     public Commands() {
         super(null);
@@ -45,7 +42,6 @@ public class Commands extends System<Commands> {
 
     @Override
     public void init() {
-        add(new BaritoneCommand());
         add(new VClipCommand());
         add(new HClipCommand());
         add(new DismountCommand());
@@ -60,6 +56,7 @@ public class Commands extends System<Commands> {
         add(new NbtCommand());
         add(new NotebotCommand());
         add(new PeekCommand());
+        add(new EnderChestCommand());
         add(new ProfilesCommand());
         add(new ReloadCommand());
         add(new ResetCommand());
@@ -71,11 +68,12 @@ public class Commands extends System<Commands> {
         add(new SpectateCommand());
         add(new GamemodeCommand());
         add(new SaveMapCommand());
+        add(new MacroCommand());
         add(new ModulesCommand());
         add(new BindsCommand());
         add(new GiveCommand());
         add(new BindCommand());
-        add(new FOVCommand());
+        add(new FovCommand());
         add(new RotationCommand());
         add(new WaypointCommand());
         add(new InputCommand());
@@ -104,44 +102,28 @@ public class Commands extends System<Commands> {
         }
     }
 
-    public void dispatch(String message) throws CommandSyntaxException {
-        dispatch(message, new ChatCommandSource(mc));
-    }
-
-    public void dispatch(String message, CommandSource source) throws CommandSyntaxException {
-        ParseResults<CommandSource> results = getDispatcher().parse(message, source);
-        getDispatcher().execute(results);
-    }
-
-    public CommandDispatcher<CommandSource> getDispatcher() {
-        return (CommandDispatcher<CommandSource>) (Object) DISPATCHER;
-    }
-
-    private final static class ChatCommandSource extends ClientCommandSource {
-        public ChatCommandSource(MinecraftClient client) {
-            super(null, client);
-        }
-    }
-
     public void add(Command command) {
-        commands.removeIf(command1 -> command1.getName().equals(command.getName()));
-        commandInstances.values().removeIf(command1 -> command1.getName().equals(command.getName()));
-
-        command.registerTo(getDispatcher());
+        commands.removeIf(existing -> existing.getName().equals(command.getName()));
+        command.registerTo((CommandDispatcher<CommandSource>) (Object) DISPATCHER);
         commands.add(command);
-        commandInstances.put(command.getClass(), command);
     }
 
-    public int getCount() {
-        return commands.size();
+    public void dispatch(String message) throws CommandSyntaxException {
+        ParseResults<FabricClientCommandSource> results = DISPATCHER.parse(message, COMMAND_SOURCE);
+        DISPATCHER.execute(results);
     }
 
     public List<Command> getAll() {
         return commands;
     }
 
-    @SuppressWarnings("unchecked")
-    public <T extends Command> T get(Class<T> klass) {
-        return (T) commandInstances.get(klass);
+    public Command get(String name) {
+        for (Command command : commands) {
+            if (command.getName().equals(name)) {
+                return command;
+            }
+        }
+
+        return null;
     }
 }
