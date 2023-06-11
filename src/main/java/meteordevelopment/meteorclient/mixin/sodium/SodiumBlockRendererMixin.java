@@ -5,24 +5,28 @@
 
 package meteordevelopment.meteorclient.mixin.sodium;
 
+import me.jellysquid.mods.sodium.client.model.IndexBufferBuilder;
+import me.jellysquid.mods.sodium.client.model.quad.ModelQuadView;
+import me.jellysquid.mods.sodium.client.model.quad.properties.ModelQuadOrientation;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.buffers.ChunkModelBuilder;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderContext;
 import me.jellysquid.mods.sodium.client.render.chunk.compile.pipeline.BlockRenderer;
-import me.jellysquid.mods.sodium.client.util.color.ColorABGR;
+import me.jellysquid.mods.sodium.client.render.vertex.type.ChunkVertexBufferBuilder;
+import me.jellysquid.mods.sodium.client.render.vertex.type.ChunkVertexEncoder;
 import meteordevelopment.meteorclient.systems.modules.render.Xray;
+import net.minecraft.util.math.Vec3d;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
-import java.util.Arrays;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 @Mixin(value = BlockRenderer.class, remap = false)
 public class SodiumBlockRendererMixin {
     @Unique private final ThreadLocal<Integer> alphas = new ThreadLocal<>();
-    @Unique private final ThreadLocal<int[]> colors = ThreadLocal.withInitial(() -> new int[4]);
 
     @Inject(method = "renderModel", at = @At("HEAD"), cancellable = true)
     private void onRenderModel(BlockRenderContext ctx, ChunkModelBuilder buffers, CallbackInfoReturnable<Boolean> info) {
@@ -32,23 +36,15 @@ public class SodiumBlockRendererMixin {
         else alphas.set(alpha);
     }
 
-    // TODO: Looks like Sodium disables transparency on blocks that aren't supposed to be transparent
-    @ModifyVariable(method = "writeGeometry", at = @At("HEAD"), argsOnly = true, index = 6)
-    private int[] onWriteGeometryModifyColors(int[] colors) {
+
+    @Inject(method = "writeGeometry", at = @At(value = "FIELD", target = "Lme/jellysquid/mods/sodium/client/render/vertex/type/ChunkVertexEncoder$Vertex;color:I", opcode = Opcodes.PUTFIELD, shift = At.Shift.AFTER), locals = LocalCapture.CAPTURE_FAILSOFT, cancellable = true)
+    private void setColor(BlockRenderContext ctx, ChunkVertexBufferBuilder vertexBuffer, IndexBufferBuilder indexBuffer, Vec3d offset, ModelQuadView quad, int[] colors, float[] brightness, int[] lightmap, CallbackInfo info, ModelQuadOrientation orientation, ChunkVertexEncoder.Vertex[] vertices, int dstIndex, int srcIndex, ChunkVertexEncoder.Vertex out) {
         int alpha = alphas.get();
 
-        if (alpha != -1) {
-            if (colors == null) {
-                colors = this.colors.get();
-                Arrays.fill(colors, ColorABGR.pack(255, 255, 255, alpha));
-            }
-            else {
-                for (int i = 0; i < colors.length; i++) {
-                    colors[i] = ColorABGR.withAlpha(colors[i], alpha / 255f);
-                }
-            }
+        if (alpha == 0) info.cancel();
+        else if (alpha != -1) {
+            out.color &= 0xFFFFFF;
+            out.color |= alpha << 24;
         }
-
-        return colors;
     }
 }

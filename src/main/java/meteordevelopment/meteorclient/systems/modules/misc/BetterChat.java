@@ -7,11 +7,11 @@ package meteordevelopment.meteorclient.systems.modules.misc;
 
 import it.unimi.dsi.fastutil.chars.Char2CharMap;
 import it.unimi.dsi.fastutil.chars.Char2CharOpenHashMap;
+import meteordevelopment.meteorclient.commands.Commands;
 import meteordevelopment.meteorclient.events.game.ReceiveMessageEvent;
 import meteordevelopment.meteorclient.events.game.SendMessageEvent;
 import meteordevelopment.meteorclient.mixin.ChatHudAccessor;
 import meteordevelopment.meteorclient.settings.*;
-import meteordevelopment.meteorclient.systems.commands.Commands;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
@@ -73,7 +73,7 @@ public class BetterChat extends Module {
         .build()
     );
 
-    public final Setting<Boolean> antiHistClear = sgGeneral.add(new BoolSetting.Builder()
+    private final Setting<Boolean> keepHistory = sgGeneral.add(new BoolSetting.Builder()
         .name("keep-history")
         .description("Prevents the chat history from being cleared when disconnecting.")
         .defaultValue(true)
@@ -421,7 +421,7 @@ public class BetterChat extends Module {
             .withFormatting(Formatting.DARK_RED)
             .withClickEvent(new ClickEvent(
                 ClickEvent.Action.RUN_COMMAND,
-                Commands.get().get("say").toString(message)
+                Commands.get("say").toString(message)
             ))
             .withHoverEvent(new HoverEvent(
                 HoverEvent.Action.SHOW_TEXT,
@@ -441,6 +441,8 @@ public class BetterChat extends Module {
     }
 
     public boolean displayPlayerHeads() { return isActive() && playerHeads.get(); }
+
+    public boolean keepHistory() { return isActive() && keepHistory.get(); }
 
     public int getChatLength() {
         return longerChatLines.get();

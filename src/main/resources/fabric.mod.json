@@ -18,6 +18,7 @@
   "icon": "assets/fabric-api-base/icon.png",
   "environment": "client",
   "entrypoints": {
+    "preLaunch": ["com.llamalad7.mixinextras.MixinExtrasBootstrap::init"],
     "client": ["meteordevelopment.meteorclient.MeteorClient"],
     "libjf:asm": ["meteordevelopment.meteorclient.asm.Asm"]
   },
@@ -35,8 +36,8 @@
   },
   "depends": {
     "java": ">=17",
-    "minecraft": ">=1.19.4",
-    "fabricloader": ">=0.14.17"
+    "minecraft": "1.20",
+    "fabricloader": ">=0.14.21"
   },
   "breaks": {
     "optifabric": "*",

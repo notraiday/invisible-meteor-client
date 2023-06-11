@@ -18,9 +18,12 @@ import meteordevelopment.meteorclient.renderer.text.CustomTextRenderer;
 import meteordevelopment.meteorclient.renderer.text.Font;
 import meteordevelopment.meteorclient.renderer.text.VanillaTextRenderer;
 import meteordevelopment.meteorclient.utils.Utils;
+import meteordevelopment.meteorclient.utils.render.RenderUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.orbit.EventHandler;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Identifier;
 import org.lwjgl.BufferUtils;
 
@@ -48,16 +51,18 @@ public class HudRenderer {
         })
         .build(CacheLoader.from(HudRenderer::loadFont));
 
+    public DrawContext drawContext;
     public double delta;
 
     private HudRenderer() {
         MeteorClient.EVENT_BUS.subscribe(this);
     }
 
-    public void begin() {
+    public void begin(DrawContext drawContext) {
         Renderer2D.COLOR.begin();
 
-        delta = Utils.frameTime;
+        this.drawContext = drawContext;
+        this.delta = Utils.frameTime;
 
         if (!hud.hasCustomFont()) {
             VanillaTextRenderer.INSTANCE.scaleIndividually = true;
@@ -92,6 +97,8 @@ public class HudRenderer {
 
         for (Runnable task : postTasks) task.run();
         postTasks.clear();
+
+        this.drawContext = null;
     }
 
     public void line(double x1, double y1, double x2, double y2, Color color) {
@@ -108,6 +115,10 @@ public class HudRenderer {
 
     public void quadRounded(double x, double y, double width, double height, Color c) {
         Renderer2D.COLOR.quadRounded(x, y, width, height, c, GuiThemes.get().roundAmount(), true);
+    }
+
+    public void triangle(double x1, double y1, double x2, double y2, double x3, double y3, Color color) {
+        Renderer2D.COLOR.triangle(x1, y1, x2, y2, x3, y3, color);
     }
 
     public void texture(Identifier id, double x, double y, double width, double height, Color color) {
@@ -191,6 +202,14 @@ public class HudRenderer {
 
     public void post(Runnable task) {
         postTasks.add(task);
+    }
+
+    public void item(ItemStack itemStack, int x, int y, float scale, boolean overlay, String countOverlay) {
+        RenderUtils.drawItem(drawContext, itemStack, x, y, scale, overlay, countOverlay);
+    }
+
+    public void item(ItemStack itemStack, int x, int y, float scale, boolean overlay) {
+        RenderUtils.drawItem(drawContext, itemStack, x, y, scale, overlay);
     }
 
     private FontHolder getFontHolder(double scale, boolean render) {

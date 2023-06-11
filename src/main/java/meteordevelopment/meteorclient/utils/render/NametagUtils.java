@@ -7,6 +7,7 @@ package meteordevelopment.meteorclient.utils.render;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import meteordevelopment.meteorclient.utils.Utils;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.math.MatrixStack;
 import org.joml.Matrix4f;
 import org.joml.Vector3d;
@@ -42,6 +43,10 @@ public class NametagUtils {
     }
 
     public static boolean to2D(Vector3d pos, double scale, boolean distanceScaling) {
+        return to2D(pos, scale, distanceScaling, false);
+    }
+
+    public static boolean to2D(Vector3d pos, double scale, boolean distanceScaling, boolean allowBehind) {
         NametagUtils.scale = scale;
         if (distanceScaling) {
             NametagUtils.scale *= getScale(pos);
@@ -52,21 +57,36 @@ public class NametagUtils {
         vec4.mul(model, mmMat4);
         mmMat4.mul(projection, pmMat4);
 
-        if (pmMat4.w <= 0.0f) return false;
+        boolean behind = pmMat4.w <= 0.f;
+
+        if (behind && !allowBehind) return false;
 
         toScreen(pmMat4);
         double x = pmMat4.x * mc.getWindow().getFramebufferWidth();
         double y = pmMat4.y * mc.getWindow().getFramebufferHeight();
 
+        if (behind) {
+            x = mc.getWindow().getFramebufferWidth() - x;
+            y = mc.getWindow().getFramebufferHeight() - y;
+        }
+
         if (Double.isInfinite(x) || Double.isInfinite(y)) return false;
 
-        pos.set(x / windowScale, mc.getWindow().getFramebufferHeight() - y / windowScale, pmMat4.z);
+        pos.set(x / windowScale, mc.getWindow().getFramebufferHeight() - y / windowScale, allowBehind ? pmMat4.w : pmMat4.z);
         return true;
     }
 
     public static void begin(Vector3d pos) {
         MatrixStack matrices = RenderSystem.getModelViewStack();
+        begin(matrices, pos);
+    }
 
+    public static void begin(Vector3d pos, DrawContext drawContext) {
+        begin(pos);
+        begin(drawContext.getMatrices(), pos);
+    }
+
+    private static void begin(MatrixStack matrices, Vector3d pos) {
         matrices.push();
         matrices.translate(pos.x, pos.y, 0);
         matrices.scale((float) scale, (float) scale, 1);
@@ -74,6 +94,11 @@ public class NametagUtils {
 
     public static void end() {
         RenderSystem.getModelViewStack().pop();
+    }
+
+    public static void end(DrawContext drawContext) {
+        end();
+        drawContext.getMatrices().pop();
     }
 
     private static double getScale(Vector3d pos) {

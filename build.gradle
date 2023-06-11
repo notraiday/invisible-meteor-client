@@ -1,5 +1,5 @@
 plugins {
-    id "fabric-loom" version "1.1-SNAPSHOT"
+    id "fabric-loom" version "1.2-SNAPSHOT"
     id "maven-publish"
     id "com.github.johnrengelman.shadow" version "7.1.2"
 }
@@ -12,9 +12,9 @@ group = project.maven_group
 
 repositories {
     maven {
-		name = "meteor-maven"
-		url = "https://maven.meteordev.org/releases"
-	}
+        name = "meteor-maven"
+        url = "https://maven.meteordev.org/releases"
+    }
     maven {
         name = "meteor-maven-snapshots"
         url = "https://maven.meteordev.org/snapshots"
@@ -44,7 +44,7 @@ configurations {
 }
 
 dependencies {
-	// Fabric
+    // Fabric
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
@@ -55,12 +55,13 @@ dependencies {
         transitive = false
     }
 
-	// Compat fixes
+    // Compat fixes
     modCompileOnly("maven.modrinth:sodium:${project.sodium_version}") { transitive = false }
     modCompileOnly("maven.modrinth:lithium:${project.lithium_version}") { transitive = false }
+    modCompileOnly("maven.modrinth:iris:${project.iris_version}") { transitive = false }
     //modCompileOnly("io.vram:canvas-fabric-mc119:1.0.+") { transitive = false } // TODO: 1.19.3
 
-	// Baritone (https://github.com/MeteorDevelopment/baritone)
+    // Baritone (https://github.com/MeteorDevelopment/baritone)
     modInclude "baritone:fabric:${project.minecraft_version}-SNAPSHOT"
 
     // Libraries
@@ -69,6 +70,8 @@ dependencies {
     modInclude "org.reflections:reflections:${project.reflections_version}"
     modInclude("io.netty:netty-handler-proxy:${project.netty_version}") { transitive = false }
     modInclude("io.netty:netty-codec-socks:${project.netty_version}") { transitive = false }
+    modInclude "com.github.LlamaLad7.MixinExtras:mixinextras-fabric:${project.mixin_extras_version}"
+    annotationProcessor "com.github.LlamaLad7.MixinExtras:mixinextras-fabric:${project.mixin_extras_version}"
 
     modInclude "io.gitlab.jfronny.libjf:libjf-unsafe-v0:${project.libjf_version}"
     include "io.gitlab.jfronny.libjf:libjf-base:${project.libjf_version}"
@@ -86,7 +89,7 @@ afterEvaluate {
 }
 
 shadowJar {
-	configurations = [ project.configurations.shadow ]
+    configurations = [project.configurations.shadow]
 
     dependencies {
         exclude {
@@ -102,12 +105,12 @@ processResources {
 }
 
 jar {
-	from "LICENSE"
+    from "LICENSE"
 }
 
 remapJar {
-	dependsOn shadowJar
-	inputFile.set(shadowJar.archiveFile)
+    dependsOn shadowJar
+    inputFile.set(shadowJar.archiveFile)
 }
 
 javadoc {
@@ -117,7 +120,7 @@ javadoc {
 
 task sourcesJar(type: Jar, dependsOn: classes) {
     archiveClassifier.set("sources")
-	from sourceSets.main.allSource
+    from sourceSets.main.allSource
 }
 
 task javadocJar(type: Jar) {

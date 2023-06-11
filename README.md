@@ -14,7 +14,6 @@ You can get a build from [GitHub Actions](https://github.com/JFronny/meteor-clie
 - Add optional UI rounding + relevant API additions ([#619](https://github.com/MeteorDevelopment/meteor-client/pull/619))
 - Remove credit/spash/title/prefix customization
 - Add keywords to modules for discoverability ([#1600](https://github.com/MeteorDevelopment/meteor-client/pull/1600))
-- Use browser user agent in Http Utils instead of "Meteor Client"
 - Add default target entities to KillAura and BowAimbot
 
 ## Credits

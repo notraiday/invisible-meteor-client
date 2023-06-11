@@ -6,7 +6,6 @@
   "client": [
     "AbstractBlockAccessor",
     "AbstractBlockMixin",
-    "AbstractButtonWidgetAccessor",
     "AbstractClientPlayerEntityMixin",
     "AbstractFurnaceScreenHandlerMixin",
     "AbstractFurnaceScreenMixin",
@@ -46,7 +45,6 @@
     "ClientChunkManagerAccessor",
     "ClientChunkMapAccessor",
     "ClientConnectionAccessor",
-    "ClientConnectionInitChannelMixin",
     "ClientConnectionMixin",
     "ClientPlayerEntityAccessor",
     "ClientPlayerEntityMixin",
@@ -66,6 +64,7 @@
     "CustomPayloadS2CPacketMixin",
     "DefaultSkinHelperMixin",
     "DisconnectedScreenMixin",
+    "DrawContextMixin",
     "EnchantingTableBlockEntityRendererMixin",
     "EndCrystalEntityRendererMixin",
     "EntityAccessor",
