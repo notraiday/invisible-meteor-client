@@ -76,8 +76,13 @@ public abstract class ClientPlayerInteractionManagerMixin implements IClientPlay
                     clickSlot(syncId, 17, armorSlot, SlotActionType.SWAP, player); //armor slot <-> inv slot
                     ci.cancel();
                 } else if (actionType == SlotActionType.SWAP) {
-                    clickSlot(syncId, 36 + button, armorSlot, SlotActionType.SWAP, player); //invert swap
-                    ci.cancel();
+                    if (button >= 10) {
+                        clickSlot(syncId, 45, armorSlot, SlotActionType.SWAP, player);
+                        ci.cancel();
+                    } else {
+                        clickSlot(syncId, 36 + button, armorSlot, SlotActionType.SWAP, player); //invert swap
+                        ci.cancel();
+                    }
                 }
             }
         }
@@ -111,6 +116,11 @@ public abstract class ClientPlayerInteractionManagerMixin implements IClientPlay
     @Inject(method = "getReachDistance", at = @At("HEAD"), cancellable = true)
     private void onGetReachDistance(CallbackInfoReturnable<Float> info) {
         info.setReturnValue(Modules.get().get(Reach.class).blockReach());
+    }
+
+    @Inject(method = "hasExtendedReach", at = @At("HEAD"), cancellable = true)
+    private void onHasExtendedReach(CallbackInfoReturnable<Boolean> info) {
+        if (Modules.get().isActive(Reach.class)) info.setReturnValue(false);
     }
 
     @Redirect(method = "updateBlockBreakingProgress", at = @At(value = "FIELD", target = "Lnet/minecraft/client/network/ClientPlayerInteractionManager;blockBreakingCooldown:I", opcode = Opcodes.PUTFIELD, ordinal = 1))
