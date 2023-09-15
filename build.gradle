@@ -69,6 +69,7 @@ dependencies {
     modInclude "meteordevelopment:orbit:${project.orbit_version}"
     modInclude "meteordevelopment:starscript:${project.starscript_version}"
     modInclude "org.reflections:reflections:${project.reflections_version}"
+    modInclude "org.javassist:javassist:3.28.0-GA" // dependency of reflections, ordinarily shadowed
     modInclude("io.netty:netty-handler-proxy:${project.netty_version}") { transitive = false }
     modInclude("io.netty:netty-codec-socks:${project.netty_version}") { transitive = false }
     modInclude "com.github.LlamaLad7.MixinExtras:mixinextras-fabric:${project.mixin_extras_version}"
@@ -97,6 +98,8 @@ shadowJar {
             it.moduleGroup == "org.slf4j"
         }
     }
+
+    destinationDirectory.set(new File(project.buildDir, "devlibs"))
 }
 
 processResources {
