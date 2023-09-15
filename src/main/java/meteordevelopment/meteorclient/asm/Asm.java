@@ -10,6 +10,7 @@ import io.gitlab.jfronny.libjf.unsafe.asm.patch.Patch;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.asm.transformers.CanvasWorldRendererTransformer;
 import meteordevelopment.meteorclient.asm.transformers.GameRendererTransformer;
+import meteordevelopment.meteorclient.asm.transformers.PacketInflaterTransformer;
 import net.fabricmc.loader.api.FabricLoader;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -38,6 +39,7 @@ public class Asm implements AsmConfig {
 
         add(new GameRendererTransformer());
         add(new CanvasWorldRendererTransformer());
+        add(new PacketInflaterTransformer());
     }
 
     private void add(AsmTransformer transformer) {
