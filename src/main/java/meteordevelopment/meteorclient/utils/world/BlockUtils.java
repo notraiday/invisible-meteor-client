@@ -162,6 +162,33 @@ public class BlockUtils {
         return null;
     }
 
+    public static Direction getClosestPlaceSide(BlockPos blockPos) {
+        return getClosestPlaceSide(blockPos, mc.player.getEyePos());
+    }
+    public static Direction getClosestPlaceSide(BlockPos blockPos, Vec3d pos) {
+        Direction closestSide = null;
+        double closestDistance = Double.MAX_VALUE;
+
+        for (Direction side : Direction.values()) {
+            BlockPos neighbor = blockPos.offset(side);
+            BlockState state = mc.world.getBlockState(neighbor);
+
+            // Check if neighbour isn't empty
+            if (state.isAir() || isClickable(state.getBlock())) continue;
+
+            // Check if neighbour is a fluid
+            if (!state.getFluidState().isEmpty()) continue;
+
+            double distance = pos.squaredDistanceTo(neighbor.getX(), neighbor.getY(), neighbor.getZ());
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestSide = side;
+            }
+        }
+
+        return closestSide;
+    }
+
     // Breaking
 
     @EventHandler(priority = EventPriority.HIGHEST + 100)
@@ -244,20 +271,26 @@ public class BlockUtils {
     }
 
     public static MobSpawn isValidMobSpawn(BlockPos blockPos, boolean newMobSpawnLightLevel) {
-        int spawnLightLimit = newMobSpawnLightLevel ? 0 : 7;
-        if (!(mc.world.getBlockState(blockPos).getBlock() instanceof AirBlock) ||
-            mc.world.getBlockState(blockPos.down()).getBlock() == Blocks.BEDROCK) return MobSpawn.Never;
+        return isValidMobSpawn(blockPos, mc.world.getBlockState(blockPos), newMobSpawnLightLevel ? 0 : 7);
+    }
 
-        if (!topSurface(mc.world.getBlockState(blockPos.down()))) {
-            if (mc.world.getBlockState(blockPos.down()).getCollisionShape(mc.world, blockPos.down()) != VoxelShapes.fullCube())
+    public static MobSpawn isValidMobSpawn(BlockPos blockPos, BlockState blockState, int spawnLightLimit) {
+        if (!(blockState.getBlock() instanceof AirBlock)) return MobSpawn.Never;
+
+        BlockPos down = blockPos.down();
+        BlockState downState = mc.world.getBlockState(down);
+        if (downState.getBlock() == Blocks.BEDROCK) return MobSpawn.Never;
+
+        if (!topSurface(downState)) {
+            if (downState.getCollisionShape(mc.world, down) != VoxelShapes.fullCube())
                 return MobSpawn.Never;
-            if (mc.world.getBlockState(blockPos.down()).isTransparent(mc.world, blockPos.down())) return MobSpawn.Never;
+            if (downState.isTransparent(mc.world, down)) return MobSpawn.Never;
         }
 
-        if (mc.world.getLightLevel(blockPos, 0) <= spawnLightLimit) return MobSpawn.Potential;
-        else if (mc.world.getLightLevel(LightType.BLOCK, blockPos) <= spawnLightLimit) return MobSpawn.Always;
+        if (mc.world.getLightLevel(LightType.BLOCK, blockPos) > spawnLightLimit) return MobSpawn.Never;
+        else if (mc.world.getLightLevel(LightType.SKY, blockPos) > spawnLightLimit) return  MobSpawn.Potential;
 
-        return MobSpawn.Never;
+        return MobSpawn.Always;
     }
 
     public static boolean topSurface(BlockState blockState) {
@@ -335,5 +368,12 @@ public class BlockUtils {
         }
 
         return speed;
+    }
+
+    /**
+     * Mutates a {@link BlockPos.Mutable} around an origin
+     */
+    public static BlockPos.Mutable mutateAround(BlockPos.Mutable mutable, BlockPos origin, int xOffset, int yOffset, int zOffset) {
+        return mutable.set(origin.getX() + xOffset, origin.getY() + yOffset, origin.getZ() + zOffset);
     }
 }

@@ -6,6 +6,7 @@
 package meteordevelopment.meteorclient.gui.widgets;
 
 import meteordevelopment.meteorclient.gui.widgets.containers.WHorizontalList;
+import meteordevelopment.meteorclient.utils.misc.Names;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffectUtil;
 import net.minecraft.item.ItemStack;
@@ -13,6 +14,8 @@ import net.minecraft.item.Items;
 import net.minecraft.potion.PotionUtil;
 
 import java.util.List;
+
+import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 public class WItemWithLabel extends WHorizontalList {
     private ItemStack itemStack;
@@ -38,13 +41,13 @@ public class WItemWithLabel extends WHorizontalList {
         if (itemStack.getItem() == Items.POTION) {
             List<StatusEffectInstance> effects = PotionUtil.getPotion(itemStack).getEffects();
 
-            if (effects.size() > 0) {
+            if (!effects.isEmpty()) {
                 str += " ";
 
                 StatusEffectInstance effect = effects.get(0);
-                if (effect.getAmplifier() > 0) str += effect.getAmplifier() + 1 + " ";
+                if (effect.getAmplifier() > 0) str += "%d ".formatted(effect.getAmplifier() + 1);
 
-                str += "(" + StatusEffectUtil.getDurationText(effect, 1).getString() + ")";
+                str += "(%s)".formatted(StatusEffectUtil.getDurationText(effect, 1, mc.world != null ? mc.world.getTickManager().getTickRate() : 20.0F).getString());
             }
         }
 
@@ -55,7 +58,7 @@ public class WItemWithLabel extends WHorizontalList {
         this.itemStack = itemStack;
         item.itemStack = itemStack;
 
-        name = itemStack.getName().getString();
+        name = Names.get(itemStack);
         label.set(name + getStringToAppend());
     }
 

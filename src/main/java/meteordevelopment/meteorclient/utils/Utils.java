@@ -32,6 +32,7 @@ import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
 import net.minecraft.client.resource.ResourceReloadLogger;
+import net.minecraft.client.resource.language.I18n;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.effect.StatusEffect;
@@ -56,7 +57,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.Random;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -247,7 +251,7 @@ public class Utils {
     }
 
     public static String getEnchantSimpleName(Enchantment enchantment, int length) {
-        return enchantment.getName(0).getString().substring(0, length);
+        return I18n.translate(enchantment.getTranslationKey()).substring(0, length);
     }
 
     public static boolean searchTextDefault(String text, String filter, boolean caseSensitive) {
@@ -336,7 +340,7 @@ public class Utils {
 
         // Multiplayer
         if (mc.getCurrentServerEntry() != null) {
-            return mc.isConnectedToRealms() ? "realms" : mc.getCurrentServerEntry().address;
+            return mc.getCurrentServerEntry().isRealm() ? "realms" : mc.getCurrentServerEntry().address;
         }
 
         return "";

@@ -5,19 +5,18 @@
 
 package meteordevelopment.meteorclient.systems.modules.movement;
 
-import baritone.api.BaritoneAPI;
 import com.google.common.collect.Streams;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.pathing.PathManagers;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.player.DamageUtils;
+import meteordevelopment.meteorclient.utils.entity.DamageUtils;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
 
-import java.util.Comparator;
-import java.util.Optional;
+import java.util.OptionalDouble;
 
 public class Step extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -55,7 +54,7 @@ public class Step extends Module {
     );
 
     private float prevStepHeight;
-    private boolean prevBaritoneAssumeStep;
+    private boolean prevPathManagerStep;
 
     public Step() {
         super(Categories.Movement, "step", "Allows you to walk up full blocks instantly.");
@@ -64,9 +63,9 @@ public class Step extends Module {
     @Override
     public void onActivate() {
         prevStepHeight = mc.player.getStepHeight();
-        prevBaritoneAssumeStep = BaritoneAPI.getSettings().assumeStep.value;
 
-        BaritoneAPI.getSettings().assumeStep.value = true;
+        prevPathManagerStep = PathManagers.get().getSettings().getStep().get();
+        PathManagers.get().getSettings().getStep().set(true);
     }
 
     @EventHandler
@@ -84,20 +83,21 @@ public class Step extends Module {
     @Override
     public void onDeactivate() {
         mc.player.setStepHeight(prevStepHeight);
-        BaritoneAPI.getSettings().assumeStep.value = prevBaritoneAssumeStep;
+
+        PathManagers.get().getSettings().getStep().set(prevPathManagerStep);
     }
 
     private float getHealth(){
         return mc.player.getHealth() + mc.player.getAbsorptionAmount();
     }
 
-    private double getExplosionDamage(){
-        Optional<EndCrystalEntity> crystal = Streams.stream(mc.world.getEntities())
+    private double getExplosionDamage() {
+        OptionalDouble crystalDamage = Streams.stream(mc.world.getEntities())
                 .filter(entity -> entity instanceof EndCrystalEntity)
                 .filter(Entity::isAlive)
-                .max(Comparator.comparingDouble(o -> DamageUtils.crystalDamage(mc.player, o.getPos())))
-                .map(entity -> (EndCrystalEntity) entity);
-        return crystal.map(endCrystalEntity -> DamageUtils.crystalDamage(mc.player, endCrystalEntity.getPos())).orElse(0.0);
+                .mapToDouble(entity -> DamageUtils.crystalDamage(mc.player, entity.getPos()))
+                .max();
+        return crystalDamage.orElse(0.0);
     }
 
     public enum ActiveWhen {

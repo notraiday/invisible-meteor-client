@@ -5,8 +5,8 @@
 
 package meteordevelopment.meteorclient.systems.modules.combat;
 
-import baritone.api.BaritoneAPI;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
+import meteordevelopment.meteorclient.pathing.PathManagers;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.friends.Friends;
 import meteordevelopment.meteorclient.systems.modules.Categories;
@@ -94,7 +94,7 @@ public class BowAimbot extends Module {
     @EventHandler
     private void onRender(Render3DEvent event) {
         if (!PlayerUtils.isAlive() || !itemInHand()) return;
-        if (!InvUtils.find(itemStack -> itemStack.getItem() instanceof ArrowItem).found()) return;
+        if (!mc.player.getAbilities().creativeMode && !InvUtils.find(itemStack -> itemStack.getItem() instanceof ArrowItem).found()) return;
 
         target = TargetUtils.get(entity -> {
             if (entity == mc.player || entity == mc.cameraEntity) return false;
@@ -112,15 +112,15 @@ public class BowAimbot extends Module {
 
         if (target == null) {
             if (wasPathing) {
-                BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("resume");
+                PathManagers.get().resume();
                 wasPathing = false;
             }
             return;
         }
 
         if (mc.options.useKey.isPressed() && itemInHand()) {
-            if (pauseOnCombat.get() && BaritoneAPI.getProvider().getPrimaryBaritone().getPathingBehavior().isPathing() && !wasPathing) {
-                BaritoneAPI.getProvider().getPrimaryBaritone().getCommandManager().execute("pause");
+            if (pauseOnCombat.get() && PathManagers.get().isPathing() && !wasPathing) {
+                PathManagers.get().pause();
                 wasPathing = true;
             }
             aim(event.tickDelta);
