@@ -22,6 +22,7 @@ import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.misc.MeteorIdentifier;
+import meteordevelopment.meteorclient.utils.misc.text.MeteorClickEvent;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.orbit.EventHandler;
@@ -219,6 +220,7 @@ public class BetterChat extends Module {
 
     private static final Pattern antiSpamRegex = Pattern.compile(" \\(([0-9]+)\\)$");
     private static final Pattern timestampRegex = Pattern.compile("^(<[0-9]{2}:[0-9]{2}>\\s)");
+    private static final Pattern usernameRegex = Pattern.compile("^(?:<[0-9]{2}:[0-9]{2}>\\s)?<(.*?)>.*");
 
     private final Char2CharMap SMALL_CAPS = new Char2CharOpenHashMap();
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm");
@@ -425,11 +427,10 @@ public class BetterChat extends Module {
 
         // If the packet did not contain a sender field then try to get the sender from the message
         if (sender == null) {
-            int openingI = text.indexOf('<');
-            int closingI = text.indexOf('>');
+            Matcher usernameMatcher = usernameRegex.matcher(text);
 
-            if (openingI != -1 && closingI != -1 && closingI > openingI) {
-                String username = text.substring(openingI + 1, closingI);
+            if (usernameMatcher.matches()) {
+                String username = usernameMatcher.group(1);
 
                 PlayerListEntry entry = mc.getNetworkHandler().getPlayerListEntry(username);
                 if (entry != null) sender = entry.getProfile();
@@ -518,7 +519,7 @@ public class BetterChat extends Module {
 
         sendButton.setStyle(sendButton.getStyle()
             .withFormatting(Formatting.DARK_RED)
-            .withClickEvent(new ClickEvent(
+            .withClickEvent(new MeteorClickEvent(
                 ClickEvent.Action.RUN_COMMAND,
                 Commands.get("say").toString(message)
             ))
