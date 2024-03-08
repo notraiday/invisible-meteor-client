@@ -85,7 +85,7 @@ public class LightOverlay extends Module {
     private final Mesh mesh = new ShaderMesh(Shaders.POS_COLOR, DrawMode.Lines, Mesh.Attrib.Vec3, Mesh.Attrib.Color);
 
     public LightOverlay() {
-        super(Categories.Render, "light-overlay", "Shows blocks where mobs can spawn.", "mob", "spawn");
+        super(Categories.Render, "light-overlay", "Shows blocks where mobs can spawn.");
     }
 
     @EventHandler

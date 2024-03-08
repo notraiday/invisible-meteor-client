@@ -13,7 +13,6 @@ You can get a build from [GitHub Actions](https://github.com/JFronny/meteor-clie
 - Use FAPI resource loader, client commands and keybinds instead of custom systems (requires FAPI now)
 - Add optional UI rounding + relevant API additions ([#619](https://github.com/MeteorDevelopment/meteor-client/pull/619))
 - Remove credit/spash/title/prefix customization
-- Add keywords to modules for discoverability ([#1600](https://github.com/MeteorDevelopment/meteor-client/pull/1600))
 - Add default target entities to KillAura and BowAimbot
 
 ## Credits

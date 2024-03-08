@@ -238,7 +238,7 @@ public class KillAura extends Module {
     private boolean wasPathing = false;
 
     public KillAura() {
-        super(Categories.Combat, "kill-aura", "Attacks specified entities around you.", "click", "multi");
+        super(Categories.Combat, "kill-aura", "Attacks specified entities around you.");
     }
 
     @Override

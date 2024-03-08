@@ -172,7 +172,7 @@ public class Modules extends System<Modules> {
         Map<Module, Integer> modules = new ValueComparableMap<>(Comparator.naturalOrder());
 
         for (Module module : this.moduleInstances.values()) {
-            int score = Utils.searchLevenshteinDefault(module.queryString, text, false);
+            int score = Utils.searchLevenshteinDefault(module.title, text, false);
             modules.put(module, modules.getOrDefault(module, 0) + score);
         }
 

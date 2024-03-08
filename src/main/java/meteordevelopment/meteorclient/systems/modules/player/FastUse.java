@@ -54,7 +54,7 @@ public class FastUse extends Module {
     );
 
     public FastUse() {
-        super(Categories.Player, "fast-use", "Allows you to use items at very high speeds.", "place");
+        super(Categories.Player, "fast-use", "Allows you to use items at very high speeds.");
     }
 
     public int getItemUseCooldown(ItemStack itemStack) {

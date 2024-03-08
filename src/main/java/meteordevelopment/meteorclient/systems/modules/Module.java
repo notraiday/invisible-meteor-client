@@ -22,9 +22,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Arrays;
 import java.util.Objects;
-import java.util.Set;
 
 public abstract class Module implements ISerializable<Module>, Comparable<Module> {
     protected final MinecraftClient mc;
@@ -32,7 +30,6 @@ public abstract class Module implements ISerializable<Module>, Comparable<Module
     public final Category category;
     public final String name;
     public final String title;
-    public final String queryString;
     public final String description;
     public final Color color;
 
@@ -50,17 +47,12 @@ public abstract class Module implements ISerializable<Module>, Comparable<Module
     public boolean favorite = false;
 
     public Module(Category category, String name, String description) {
-        this(category, name, description, new String[0]);
-    }
-
-    public Module(Category category, String name, String description, String... keywords) {
         this.mc = MinecraftClient.getInstance();
         this.category = category;
         this.name = name;
         this.title = Utils.nameToTitle(name);
         this.description = description;
         this.color = Color.fromHsv(Utils.random(0.0, 360.0), 0.35, 1);
-        this.queryString = name + (keywords.length == 0 ? "" : "-" + String.join("-", keywords));
     }
 
     public WWidget getWidget(GuiTheme theme) {
