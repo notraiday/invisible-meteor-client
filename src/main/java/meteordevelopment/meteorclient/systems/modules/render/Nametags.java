@@ -25,6 +25,7 @@ import meteordevelopment.meteorclient.utils.render.RenderUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
+import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.enchantment.Enchantments;
@@ -32,6 +33,7 @@ import net.minecraft.entity.*;
 import net.minecraft.entity.decoration.ItemFrameEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
@@ -160,6 +162,14 @@ public class Nametags extends Module {
         .name("ignore-empty-slots")
         .description("Doesn't add spacing where an empty item stack would be.")
         .defaultValue(true)
+        .visible(displayItems::get)
+        .build()
+    );
+
+    private final Setting<Durability> itemDurability = sgPlayers.add(new EnumSetting.Builder<Durability>()
+        .name("durability")
+        .description("Displays item durability as either a total, percentage, or neither.")
+        .defaultValue(Durability.None)
         .visible(displayItems::get)
         .build()
     );
@@ -471,12 +481,12 @@ public class Nametags extends Module {
                 if (!itemStack.isEmpty()) hasItems = true;
 
                 if (displayEnchants.get()) {
-                    Map<Enchantment, Integer> enchantments = EnchantmentHelper.get(itemStack);
+                    ItemEnchantmentsComponent enchantments = EnchantmentHelper.getEnchantments(itemStack);
 
                     int size = 0;
-                    for (var enchantment : enchantments.keySet()) {
-                        if (!shownEnchantments.get().contains(enchantment)) continue;
-                        String enchantName = Utils.getEnchantSimpleName(enchantment, enchantLength.get()) + " " + enchantments.get(enchantment);
+                    for (RegistryEntry<Enchantment> enchantment : enchantments.getEnchantments()) {
+                        if (!shownEnchantments.get().contains(enchantment.value())) continue;
+                        String enchantName = Utils.getEnchantSimpleName(enchantment.value(), enchantLength.get()) + " " + enchantments.getLevel(enchantment.value());
                         itemWidths[i] = Math.max(itemWidths[i], (text.getWidth(enchantName, shadow) / 2));
                         size++;
                     }
@@ -499,15 +509,29 @@ public class Nametags extends Module {
 
                 RenderUtils.drawItem(event.drawContext, stack, (int) x, (int) y, 2, true);
 
+                if (stack.isDamageable() && itemDurability.get() != Durability.None) {
+                    text.begin(0.75, false, true);
+
+                    String damageText = switch (itemDurability.get()) {
+                        case Percentage -> String.format("%.0f%%", ((stack.getMaxDamage() - stack.getDamage()) * 100f) / (float) stack.getMaxDamage());
+                        case Total -> Integer.toString(stack.getMaxDamage() - stack.getDamage());
+                        default -> "err";
+                    };
+                    Color damageColor = new Color(stack.getItemBarColor());
+
+                    text.render(damageText, (int) x, (int) y, damageColor.a(255), true);
+                    text.end();
+                }
+
                 if (maxEnchantCount > 0 && displayEnchants.get()) {
                     text.begin(0.5 * enchantTextScale.get(), false, true);
 
-                    Map<Enchantment, Integer> enchantments = EnchantmentHelper.get(stack);
+                    ItemEnchantmentsComponent enchantments = EnchantmentHelper.getEnchantments(stack);
                     Map<Enchantment, Integer> enchantmentsToShow = new HashMap<>();
 
-                    for (Enchantment enchantment : enchantments.keySet()) {
-                        if (shownEnchantments.get().contains(enchantment)) {
-                            enchantmentsToShow.put(enchantment, enchantments.get(enchantment));
+                    for (RegistryEntry<Enchantment> enchantment : enchantments.getEnchantments()) {
+                        if (shownEnchantments.get().contains(enchantment.value())) {
+                            enchantmentsToShow.put(enchantment.value(), enchantments.getLevel(enchantment.value()));
                         }
                     }
 
@@ -661,9 +685,15 @@ public class Nametags extends Module {
         OnTop
     }
 
+    public enum Durability {
+        None,
+        Total,
+        Percentage
+    }
+
     public enum DistanceColorMode {
         Gradient,
-        Flat;
+        Flat
     }
 
     public boolean excludeBots() {

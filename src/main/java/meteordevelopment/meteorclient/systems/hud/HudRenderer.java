@@ -46,7 +46,7 @@ public class HudRenderer {
         .maximumSize(4)
         .expireAfterAccess(Duration.ofMinutes(10))
         .removalListener(notification -> {
-            if (notification.wasEvicted()) //noinspection ConstantConditions
+            if (notification.wasEvicted())
                 ((FontHolder) notification.getValue()).destroy();
         })
         .build(CacheLoader.from(HudRenderer::loadFont));

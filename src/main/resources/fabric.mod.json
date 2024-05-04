@@ -35,14 +35,14 @@
     "fabric-api:module-lifecycle": "stable"
   },
   "depends": {
-    "java": ">=17",
-    "minecraft": "${minecraft_version}",
+    "java": ">=21",
+    "minecraft": ["1.20.5", "${minecraft_version}"],
     "fabricloader": ">=${loader_version}"
   },
   "breaks": {
     "optifabric": "*",
     "feather": "*",
-    "sodium": "<0.5.6",
+    "sodium": "<0.5.8",
     "morechathistory": "*",
     "quilt_loader": "*"
   }

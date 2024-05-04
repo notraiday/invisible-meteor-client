@@ -12,7 +12,6 @@ import meteordevelopment.meteorclient.mixininterface.IClientPlayerInteractionMan
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.systems.modules.misc.InventoryTweaks;
 import meteordevelopment.meteorclient.systems.modules.player.BreakDelay;
-import meteordevelopment.meteorclient.systems.modules.player.Reach;
 import meteordevelopment.meteorclient.systems.modules.player.SpeedMine;
 import meteordevelopment.meteorclient.utils.player.Rotations;
 import meteordevelopment.meteorclient.utils.world.BlockUtils;
@@ -59,6 +58,9 @@ public abstract class ClientPlayerInteractionManagerMixin implements IClientPlay
     @Shadow
     @Final
     private ClientPlayNetworkHandler networkHandler;
+
+    @Shadow
+    public abstract boolean breakBlock(BlockPos pos);
 
     @Inject(method = "clickSlot", at = @At("HEAD"), cancellable = true)
     private void onClickSlot(int syncId, int slotId, int button, SlotActionType actionType, PlayerEntity player, CallbackInfo info) {
@@ -108,7 +110,7 @@ public abstract class ClientPlayerInteractionManagerMixin implements IClientPlay
             if (!sm.instamine() || !sm.filter(state.getBlock())) return;
 
             if (state.calcBlockBreakingDelta(mc.player, mc.world, blockPos) > 0.5f) {
-                mc.world.breakBlock(blockPos, true, mc.player);
+                breakBlock(blockPos);
                 networkHandler.sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, blockPos, direction));
                 networkHandler.sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK, blockPos, direction));
                 info.setReturnValue(true);
@@ -134,16 +136,6 @@ public abstract class ClientPlayerInteractionManagerMixin implements IClientPlay
     @Inject(method = "dropCreativeStack", at = @At("HEAD"), cancellable = true)
     private void onDropCreativeStack(ItemStack stack, CallbackInfo info) {
         if (MeteorClient.EVENT_BUS.post(DropItemsEvent.get(stack)).isCancelled()) info.cancel();
-    }
-
-    @Inject(method = "getReachDistance", at = @At("HEAD"), cancellable = true)
-    private void onGetReachDistance(CallbackInfoReturnable<Float> info) {
-        info.setReturnValue(Modules.get().get(Reach.class).blockReach());
-    }
-
-    @Inject(method = "hasExtendedReach", at = @At("HEAD"), cancellable = true)
-    private void onHasExtendedReach(CallbackInfoReturnable<Boolean> info) {
-        if (Modules.get().isActive(Reach.class)) info.setReturnValue(false);
     }
 
     @Redirect(method = "updateBlockBreakingProgress", at = @At(value = "FIELD", target = "Lnet/minecraft/client/network/ClientPlayerInteractionManager;blockBreakingCooldown:I", opcode = Opcodes.PUTFIELD, ordinal = 1))
@@ -177,13 +169,7 @@ public abstract class ClientPlayerInteractionManagerMixin implements IClientPlay
 
     @Inject(method = "breakBlock", at = @At("HEAD"), cancellable = true)
     private void onBreakBlock(BlockPos blockPos, CallbackInfoReturnable<Boolean> info) {
-        final BreakBlockEvent event = BreakBlockEvent.get(blockPos);
-        MeteorClient.EVENT_BUS.post(event);
-
-        if (event.isCancelled()) {
-            info.setReturnValue(false);
-            info.cancel();
-        }
+        if (MeteorClient.EVENT_BUS.post(BreakBlockEvent.get(blockPos)).isCancelled()) info.setReturnValue(false);
     }
 
     @Inject(method = "interactItem", at = @At("HEAD"), cancellable = true)
@@ -206,7 +192,7 @@ public abstract class ClientPlayerInteractionManagerMixin implements IClientPlay
     }
 
     @Override
-    public void syncSelected() {
+    public void meteor$syncSelected() {
         syncSelectedSlot();
     }
 }

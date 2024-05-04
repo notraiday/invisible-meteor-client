@@ -30,7 +30,6 @@ import net.minecraft.entity.Tameable;
 import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.entity.mob.ZombifiedPiglinEntity;
 import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.entity.passive.LlamaEntity;
 import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.AxeItem;
@@ -236,6 +235,7 @@ public class KillAura extends Module {
     private final List<Entity> targets = new ArrayList<>();
     private int switchTimer, hitTimer;
     private boolean wasPathing = false;
+    public boolean attacking;
 
     public KillAura() {
         super(Categories.Combat, "kill-aura", "Attacks specified entities around you.");
@@ -244,6 +244,7 @@ public class KillAura extends Module {
     @Override
     public void onDeactivate() {
         targets.clear();
+        attacking = false;
     }
 
     @EventHandler
@@ -268,6 +269,7 @@ public class KillAura extends Module {
         }
 
         if (targets.isEmpty()) {
+            attacking = false;
             if (wasPathing) {
                 PathManagers.get().resume();
                 wasPathing = false;
@@ -275,7 +277,7 @@ public class KillAura extends Module {
             return;
         }
 
-        Entity primary = targets.get(0);
+        Entity primary = targets.getFirst();
 
         if (autoSwitch.get()) {
             Predicate<ItemStack> predicate = switch (weapon.get()) {
@@ -296,6 +298,7 @@ public class KillAura extends Module {
 
         if (!itemInHand()) return;
 
+        attacking = true;
         if (rotation.get() == RotationMode.Always) Rotations.rotate(Rotations.getYaw(primary), Rotations.getPitch(primary, Target.Body));
         if (pauseOnCombat.get() && PathManagers.get().isPathing() && !wasPathing) {
             PathManagers.get().pause();
@@ -346,10 +349,9 @@ public class KillAura extends Module {
             ) return false;
         }
         if (ignorePassive.get()) {
-            if (entity instanceof EndermanEntity enderman && !enderman.isAngryAt(mc.player)) return false;
-            if (entity instanceof ZombifiedPiglinEntity piglin && !piglin.isAngryAt(mc.player)) return false;
+            if (entity instanceof EndermanEntity enderman && !enderman.isAngry()) return false;
+            if (entity instanceof ZombifiedPiglinEntity piglin && !piglin.isAttacking()) return false;
             if (entity instanceof WolfEntity wolf && !wolf.isAttacking()) return false;
-            if (entity instanceof LlamaEntity llama && !llama.isAttacking()) return false;
         }
         if (entity instanceof PlayerEntity player) {
             if (player.isCreative()) return false;
@@ -404,7 +406,7 @@ public class KillAura extends Module {
     }
 
     public Entity getTarget() {
-        if (!targets.isEmpty()) return targets.get(0);
+        if (!targets.isEmpty()) return targets.getFirst();
         return null;
     }
 

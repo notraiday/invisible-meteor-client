@@ -26,7 +26,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.io.File;
 
 @Mixin(GameOptions.class)
-public class GameOptionsMixin {
+public abstract class GameOptionsMixin {
     @Inject(method = "setPerspective", at = @At("HEAD"), cancellable = true)
     private void setPerspective(Perspective perspective, CallbackInfo info) {
         if (Modules.get() == null) return; // nothing is loaded yet, shouldersurfing compat
