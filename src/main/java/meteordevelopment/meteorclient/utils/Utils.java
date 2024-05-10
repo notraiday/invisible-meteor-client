@@ -49,6 +49,7 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.DyeColor;
+import net.minecraft.util.collection.DefaultedList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -63,7 +64,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Locale;
+import java.util.Random;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -215,7 +219,15 @@ public class Utils {
         Arrays.fill(items, ItemStack.EMPTY);
         ComponentMap components = itemStack.getComponents();
 
-        if (components != null && components.contains(DataComponentTypes.BLOCK_ENTITY_DATA)) {
+        if (components.contains(DataComponentTypes.CONTAINER)) {
+            ContainerComponentAccessor container = ((ContainerComponentAccessor) (Object) components.get(DataComponentTypes.CONTAINER));
+            DefaultedList<ItemStack> stacks = container.getStacks();
+
+            for (int i = 0; i < stacks.size(); i++) {
+                if (i >= 0 && i < items.length) items[i] = stacks.get(i);
+            }
+        }
+        else if (components.contains(DataComponentTypes.BLOCK_ENTITY_DATA)) {
             NbtComponent nbt2 = components.get(DataComponentTypes.BLOCK_ENTITY_DATA);
 
             if (nbt2.contains("Items")) {
@@ -245,8 +257,10 @@ public class Utils {
     }
 
     public static boolean hasItems(ItemStack itemStack) {
-        NbtCompound compoundTag = itemStack.getComponents().getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT).getNbt();
-//        itemStack.getComponents().get(DataComponentTypes.CONTAINER).???
+        ContainerComponentAccessor container = ((ContainerComponentAccessor) (Object) itemStack.get(DataComponentTypes.CONTAINER));
+        if (container != null && !container.getStacks().isEmpty()) return true;
+
+        NbtCompound compoundTag = itemStack.getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT).getNbt();
         return compoundTag != null && compoundTag.contains("Items", 9);
     }
 
