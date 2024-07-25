@@ -18,6 +18,7 @@ import meteordevelopment.meteorclient.utils.Utils;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
+import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.entity.Entity;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import org.spongepowered.asm.mixin.Final;
@@ -36,13 +37,13 @@ public abstract class InGameHudMixin {
     @Shadow public abstract void clear();
 
     @Inject(method = "render", at = @At("TAIL"))
-    private void onRender(DrawContext context, float tickDelta, CallbackInfo ci) {
+    private void onRender(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         if (Modules.get().isActive(HideRenderModules.class)) return;
         client.getProfiler().push(MeteorClient.MOD_ID + "_render_2d");
 
         Utils.unscaledProjection();
 
-        MeteorClient.EVENT_BUS.post(Render2DEvent.get(context, context.getScaledWindowWidth(), context.getScaledWindowWidth(), tickDelta));
+        MeteorClient.EVENT_BUS.post(Render2DEvent.get(context, context.getScaledWindowWidth(), context.getScaledWindowWidth(), tickCounter.getTickDelta(true)));
 
         Utils.scaledProjection();
         RenderSystem.applyModelViewMatrix();
@@ -80,8 +81,8 @@ public abstract class InGameHudMixin {
         if (Modules.get().get(NoRender.class).noScoreboard()) ci.cancel();
     }
 
-    @Inject(method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;F)V", at = @At("HEAD"), cancellable = true)
-    private void onRenderScoreboardSidebar(DrawContext context, float tickDelta, CallbackInfo ci) {
+    @Inject(method = "renderScoreboardSidebar(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/render/RenderTickCounter;)V", at = @At("HEAD"), cancellable = true)
+    private void onRenderScoreboardSidebar(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         if (Modules.get().get(NoRender.class).noScoreboard()) ci.cancel();
     }
 
@@ -96,8 +97,13 @@ public abstract class InGameHudMixin {
     }
 
     @Inject(method = "renderCrosshair", at = @At("HEAD"), cancellable = true)
-    private void onRenderCrosshair(DrawContext context, float tickDelta, CallbackInfo ci) {
+    private void onRenderCrosshair(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         if (Modules.get().get(NoRender.class).noCrosshair()) ci.cancel();
+    }
+
+    @Inject(method = "renderTitleAndSubtitle", at = @At("HEAD"), cancellable = true)
+    private void onRenderTitle(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+        if (Modules.get().get(NoRender.class).noTitle()) ci.cancel();
     }
 
     @Inject(method = "renderHeldItemTooltip", at = @At("HEAD"), cancellable = true)

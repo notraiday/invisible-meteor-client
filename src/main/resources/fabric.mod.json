@@ -28,7 +28,8 @@
     "meteor-client-sodium.mixins.json",
     "meteor-client-canvas.mixins.json",
     "meteor-client-lithium.mixins.json",
-    "meteor-client-indium.mixins.json"
+    "meteor-client-indium.mixins.json",
+    "meteor-client-viafabricplus.mixins.json"
   ],
   "accessWidener": "meteor-client.accesswidener",
   "custom": {
@@ -36,7 +37,7 @@
   },
   "depends": {
     "java": ">=21",
-    "minecraft": ["1.20.5", "${minecraft_version}"],
+    "minecraft": ["${minecraft_version}"],
     "fabricloader": ">=${loader_version}"
   },
   "breaks": {

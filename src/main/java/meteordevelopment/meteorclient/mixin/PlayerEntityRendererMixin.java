@@ -30,7 +30,7 @@ public abstract class PlayerEntityRendererMixin {
         Chams chams = Modules.get().get(Chams.class);
 
         if (chams.isActive() && chams.hand.get()) {
-            Identifier texture = chams.handTexture.get() ? player.playerListEntry.getSkinTextures().texture() : Chams.BLANK;
+            Identifier texture = chams.handTexture.get() ? player.getSkinTextures().texture() : Chams.BLANK;
             args.set(1, vertexConsumers.getBuffer(RenderLayer.getEntityTranslucent(texture)));
         }
     }
@@ -41,7 +41,7 @@ public abstract class PlayerEntityRendererMixin {
 
         if (chams.isActive() && chams.hand.get()) {
             Color color = chams.handColor.get();
-            modelPart.render(matrices, vertices, light, overlay, color.r/255f, color.g/255f, color.b/255f, color.a/255f);
+            modelPart.render(matrices, vertices, light, overlay, color.getPacked());
         } else {
             modelPart.render(matrices, vertices, light, overlay);
         }
@@ -55,7 +55,7 @@ public abstract class PlayerEntityRendererMixin {
 
         if (chams.isActive() && chams.hand.get()) {
             Color color = chams.handColor.get();
-            modelPart.render(matrices, vertices, light, overlay, color.r/255f, color.g/255f, color.b/255f, color.a/255f);
+            modelPart.render(matrices, vertices, light, overlay, color.getPacked());
         } else {
             modelPart.render(matrices, vertices, light, overlay);
         }

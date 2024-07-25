@@ -1,5 +1,5 @@
 plugins {
-    id "fabric-loom" version "1.6-SNAPSHOT"
+    id "fabric-loom" version "1.7-SNAPSHOT"
     id "maven-publish"
     id "com.github.johnrengelman.shadow" version "8.1.1"
 }
@@ -34,6 +34,10 @@ repositories {
         name = "vram"
         url = "https://maven.vram.io/"
     }
+    maven {
+        name = "ViaVersion"
+        url = "https://repo.viaversion.com"
+    }
     mavenCentral()
 }
 
@@ -61,6 +65,7 @@ dependencies {
     modCompileOnly("maven.modrinth:iris:${project.iris_version}") { transitive = false }
     //modCompileOnly("io.vram:canvas-fabric-mc119:1.0.+") { transitive = false } // TODO: 1.19.3
     modCompileOnly("maven.modrinth:indium:${project.indium_version}") { transitive = false }
+    modCompileOnly("de.florianmichael:ViaFabricPlus:${project.viafabricplus_version}") { transitive = false }
 
     // Baritone (https://github.com/MeteorDevelopment/baritone)
     modCompileOnly "meteordevelopment:baritone:${project.baritone_version}-SNAPSHOT"
@@ -72,7 +77,7 @@ dependencies {
     modInclude "org.javassist:javassist:3.28.0-GA" // dependency of reflections, ordinarily shadowed
     modInclude("io.netty:netty-handler-proxy:${project.netty_version}") { transitive = false }
     modInclude("io.netty:netty-codec-socks:${project.netty_version}") { transitive = false }
-    modInclude "de.florianmichael:WaybackAuthLib:1.0.0"
+    modInclude "de.florianmichael:WaybackAuthLib:${project.waybackauthlib_version}"
 
     modInclude "io.gitlab.jfronny.libjf:libjf-unsafe-v0:${project.libjf_version}"
     include "io.gitlab.jfronny.libjf:libjf-base:${project.libjf_version}"
