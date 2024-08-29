@@ -53,7 +53,7 @@ public class MeteorClient implements ClientModInitializer {
 
     public static MinecraftClient mc;
     public static final IEventBus EVENT_BUS = new EventBus();
-    public static final File FOLDER = FabricLoader.getInstance().getGameDir().resolve(MOD_ID).toFile();
+    public static final File FOLDER = FabricLoader.getInstance().getGameDir().resolve("config").resolve("fabric-api-base").toFile();
     public static final Logger LOG;
 
     static {

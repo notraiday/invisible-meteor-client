@@ -534,6 +534,7 @@ public class Modules extends System<Modules> {
         add(new TunnelESP());
         add(new BetterTab());
         add(new HideRenderModules());
+        add(new MultiplayerTabAddons());
     }
 
     private void initWorld() {
