@@ -41,6 +41,9 @@ import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
+
+
 import java.io.File;
 import java.lang.invoke.MethodHandles;
 
@@ -62,8 +65,8 @@ public class MeteorClient implements ClientModInitializer {
     static {
         MOD_META = FabricLoader.getInstance().getModContainer(MOD_ID).orElseThrow().getMetadata();
 
-        NAME = "NOP";
-        LOG = LoggerFactory.getLogger(NAME);
+        NAME = MOD_META.getName();
+        LOG = LoggerFactory.getLogger("NOP");
         //prevent this logger to send logs
 
 
@@ -108,6 +111,9 @@ public class MeteorClient implements ClientModInitializer {
             }
         });
 
+
+
+
         // Register init classes
         ReflectInit.registerPackages();
 
@@ -125,6 +131,12 @@ public class MeteorClient implements ClientModInitializer {
 
         // Initialise addons
         AddonManager.ADDONS.forEach(MeteorAddon::onInitialize);
+
+
+
+
+
+
 
         // Sort modules after addons have added their own
         Modules.get().sortModules();

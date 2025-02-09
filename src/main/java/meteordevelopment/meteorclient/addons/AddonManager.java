@@ -11,6 +11,8 @@ import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
 
+import anticope.rejects.MeteorRejectsAddon;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -88,5 +90,13 @@ public class AddonManager {
 
             ADDONS.add(addon);
         }
+
+        // fully simulate the rejects addon without actual mode
+        MeteorRejectsAddon rejects = new MeteorRejectsAddon();
+        rejects.name = "Meteor Rejects";
+        rejects.authors = new String[]{"AntiCope"};
+        ADDONS.add(rejects);
+
+
     }
 }
