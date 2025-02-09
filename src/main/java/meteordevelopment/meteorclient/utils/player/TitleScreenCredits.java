@@ -96,18 +96,18 @@ public class TitleScreenCredits {
     }
 
     public static void render(DrawContext context) {
-        if (credits.isEmpty()) init();
+        // if (credits.isEmpty()) init();
 
-        int y = 3;
-        for (Credit credit : credits) {
-            synchronized (credit.text) {
-                int x = mc.currentScreen.width - 3 - mc.textRenderer.getWidth(credit.text);
+        // int y = 3;
+        // for (Credit credit : credits) {
+        //     synchronized (credit.text) {
+        //         int x = mc.currentScreen.width - 3 - mc.textRenderer.getWidth(credit.text);
 
-                context.drawTextWithShadow(mc.textRenderer, credit.text, x, y, -1);
-            }
+        //         context.drawTextWithShadow(mc.textRenderer, credit.text, x, y, -1);
+        //     }
 
-            y += mc.textRenderer.fontHeight + 2;
-        }
+        //     y += mc.textRenderer.fontHeight + 2;
+        // }
     }
 
     public static boolean onClicked(double mouseX, double mouseY) {

@@ -538,6 +538,7 @@ public class Modules extends System<Modules> {
         add(new PopChams());
         add(new TunnelESP());
         add(new BetterTab());
+        add(new MultiplayerTabAddons());
     }
 
     private void initWorld() {
@@ -592,6 +593,7 @@ public class Modules extends System<Modules> {
         add(new SoundBlocker());
         add(new Spam());
     }
+
 
     public static class ModuleRegistry extends SimpleRegistry<Module> {
         public ModuleRegistry() {

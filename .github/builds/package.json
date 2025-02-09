@@ -9,5 +9,8 @@
   "scripts": {
     "get_number": "node get_number.js",
     "webhook": "node index.js"
+  },
+  "dependencies": {
+    "devbuilds": "file:"
   }
 }

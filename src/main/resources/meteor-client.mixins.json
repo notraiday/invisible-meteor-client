@@ -69,7 +69,6 @@
     "CompassStateMixin",
     "ConnectScreenMixin",
     "ContainerComponentAccessor",
-    "CrashReportMixin",
     "CreativeInventoryScreenAccessor",
     "CreativeSlotMixin",
     "CrossbowItemAccessor",

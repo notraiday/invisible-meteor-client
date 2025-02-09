@@ -17,6 +17,14 @@
     <img src="https://img.shields.io/endpoint?url=https://ghloc.vercel.app/api/MeteorDevelopment/meteor-client/badge?filter=.java$&label=lines%20of%20code&color=blue" alt="GitHub lines of code"/>
 </div>
 
+## Changes
+- Removed Meteor Client's keybindings from the keybinds menu
+- Default keybind changed to F13(I'm using ahk to create some sophisticated keystoke)
+- Moved config to .minecraft/config/mvo76
+- Disabled some logs(It's still recomended to set .minecraft/logs to read-only)
+- Added MultiplayerTabAddons module to disable Meteor Client's buttons in the multiplayer screen
+- Some personal thinbgs. Check commits..
+
 ## Usage
 
 ### Building

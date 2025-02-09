@@ -35,11 +35,11 @@ public class ChatUtils {
 
     @PostInit
     public static void init() {
-        PREFIX = Text.empty()
-            .setStyle(Style.EMPTY.withFormatting(Formatting.GRAY))
-            .append("[")
-            .append(Text.literal("Meteor").setStyle(Style.EMPTY.withColor(TextColor.fromRgb(MeteorClient.ADDON.color.getPacked()))))
-            .append("] ");
+        PREFIX = Text.empty();
+            // .setStyle(Style.EMPTY.withFormatting(Formatting.GRAY))
+            // .append("[")
+            // .append(Text.literal("Meteor").setStyle(Style.EMPTY.withColor(TextColor.fromRgb(MeteorClient.ADDON.color.getPacked()))))
+            // .append("] ");
     }
 
     public static Text getMeteorPrefix() {

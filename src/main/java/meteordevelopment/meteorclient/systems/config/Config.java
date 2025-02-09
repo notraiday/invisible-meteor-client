@@ -60,14 +60,14 @@ public class Config extends System<Config> {
     public final Setting<Boolean> titleScreenCredits = sgVisual.add(new BoolSetting.Builder()
         .name("title-screen-credits")
         .description("Show Meteor credits on title screen")
-        .defaultValue(true)
+        .defaultValue(false)
         .build()
     );
 
     public final Setting<Boolean> titleScreenSplashes = sgVisual.add(new BoolSetting.Builder()
         .name("title-screen-splashes")
         .description("Show Meteor splash texts on title screen")
-        .defaultValue(true)
+        .defaultValue(false)
         .build()
     );
 
@@ -124,14 +124,14 @@ public class Config extends System<Config> {
     public final Setting<String> prefix = sgChat.add(new StringSetting.Builder()
         .name("prefix")
         .description("Prefix.")
-        .defaultValue(".")
+        .defaultValue("@")
         .build()
     );
 
     public final Setting<Boolean> chatFeedback = sgChat.add(new BoolSetting.Builder()
         .name("chat-feedback")
         .description("Sends chat feedback when meteor performs certain actions.")
-        .defaultValue(true)
+        .defaultValue(false)
         .build()
     );
 

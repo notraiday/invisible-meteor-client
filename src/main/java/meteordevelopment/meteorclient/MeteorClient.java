@@ -56,14 +56,16 @@ public class MeteorClient implements ClientModInitializer {
 
     public static MinecraftClient mc;
     public static final IEventBus EVENT_BUS = new EventBus();
-    public static final File FOLDER = FabricLoader.getInstance().getGameDir().resolve(MOD_ID).toFile();
+    public static final File FOLDER = FabricLoader.getInstance().getConfigDir().resolve("mvo76").toFile();
     public static final Logger LOG;
 
     static {
         MOD_META = FabricLoader.getInstance().getModContainer(MOD_ID).orElseThrow().getMetadata();
 
-        NAME = MOD_META.getName();
+        NAME = "NOP";
         LOG = LoggerFactory.getLogger(NAME);
+        //prevent this logger to send logs
+
 
         String versionString = MOD_META.getVersion().getFriendlyString();
         if (versionString.contains("-")) versionString = versionString.split("-")[0];
@@ -141,12 +143,12 @@ public class MeteorClient implements ClientModInitializer {
         }));
     }
 
-    @EventHandler
-    private void onTick(TickEvent.Post event) {
-        if (mc.currentScreen == null && mc.getOverlay() == null && KeyBinds.OPEN_COMMANDS.wasPressed()) {
-            mc.setScreen(new ChatScreen(Config.get().prefix.get()));
-        }
-    }
+    // @EventHandler
+    // private void onTick(TickEvent.Post event) {
+    //     if (mc.currentScreen == null && mc.getOverlay() == null && KeyBinds.OPEN_COMMANDS.wasPressed()) {
+    //         mc.setScreen(new ChatScreen(Config.get().prefix.get()));
+    //     }
+    // }
 
     @EventHandler
     private void onKey(KeyEvent event) {

@@ -16,7 +16,7 @@ import java.util.List;
 
 public class AddonManager {
     public static final List<MeteorAddon> ADDONS = new ArrayList<>();
-
+// TODO RAIDAY
     public static void init() {
         // Meteor pseudo addon
         {
@@ -31,12 +31,12 @@ public class AddonManager {
 
                 @Override
                 public String getWebsite() {
-                    return "https://meteorclient.com";
+                    return "https://modrinth.com/mod/mod-volume-options";
                 }
 
                 @Override
                 public GithubRepo getRepo() {
-                    return new GithubRepo("MeteorDevelopment", "meteor-client");
+                    return new GithubRepo("pitan76", "mvo76");
                 }
 
                 @Override
