@@ -12,6 +12,7 @@ import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
 
 import anticope.rejects.MeteorRejectsAddon;
+import zgoly.meteorist.Meteorist;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -96,6 +97,12 @@ public class AddonManager {
         rejects.name = "Meteor Rejects";
         rejects.authors = new String[]{"AntiCope"};
         ADDONS.add(rejects);
+
+        // fully simulate the meteorist addon without actual mode
+        Meteorist meteorist = new Meteorist();
+        meteorist.name = "Meteorist";
+        meteorist.authors = new String[]{"zgoly"};
+        ADDONS.add(meteorist);
 
 
     }
