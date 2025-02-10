@@ -200,18 +200,18 @@ publishing {
         }
     }
 
-    repositories {
-        maven("https://maven.meteordev.org/snapshots") {
-            name = "meteor-maven"
+    // repositories {
+    //     maven("https://maven.meteordev.org/snapshots") {
+    //         name = "meteor-maven"
 
-            credentials {
-                username = System.getenv("MAVEN_METEOR_ALIAS")
-                password = System.getenv("MAVEN_METEOR_TOKEN")
-            }
+    //         credentials {
+    //             username = System.getenv("MAVEN_METEOR_ALIAS")
+    //             password = System.getenv("MAVEN_METEOR_TOKEN")
+    //         }
 
-            authentication {
-                create<BasicAuthentication>("basic")
-            }
-        }
-    }
+    //         authentication {
+    //             create<BasicAuthentication>("basic")
+    //         }
+    //     }
+    // }
 }
