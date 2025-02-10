@@ -21,7 +21,7 @@ public class MeteoristConfig {
      * @param data The data to be saved.
      */
     public static void save(String folderName, String fileName, NbtCompound data) {
-        String path = Paths.get(FabricLoader.getInstance().getGameDir().toString(), MOD_ID, removeInvalidChars(folderName), fileName + ".nbt").toString();
+        String path = Paths.get(FabricLoader.getInstance().getConfigDir().toString(), "m-config", removeInvalidChars(folderName), fileName + ".nbt").toString();
         try {
             File file = new File(path);
             if (!file.exists()) {
@@ -42,7 +42,7 @@ public class MeteoristConfig {
      * @return the loaded NBTCompound or an empty one if the file does not exist
      */
     public static NbtCompound load(String folderName, String fileName) {
-        String path = Paths.get(FabricLoader.getInstance().getGameDir().toString(), MOD_ID, removeInvalidChars(folderName), fileName + ".nbt").toString();
+        String path = Paths.get(FabricLoader.getInstance().getConfigDir().toString(), "m-config", removeInvalidChars(folderName), fileName + ".nbt").toString();
         NbtCompound data = new NbtCompound();
         try {
             File file = new File(path);

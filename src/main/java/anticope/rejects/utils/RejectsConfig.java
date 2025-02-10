@@ -32,7 +32,7 @@ public class RejectsConfig extends System<RejectsConfig> {
     public boolean duplicateModuleNames = false;
 
     public RejectsConfig() {
-        super("rejects-config");
+        super("r-config");
         init();
         load(MeteorClient.FOLDER);
     }
