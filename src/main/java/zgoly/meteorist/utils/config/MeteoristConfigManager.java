@@ -54,7 +54,7 @@ public class MeteoristConfigManager {
      */
 
     public static File getFolderPath(Module module) {
-        return new File(Paths.get(FabricLoader.getInstance().getGameDir().toString(), MOD_ID, removeInvalidChars(module.name)).toString());
+        return new File(Paths.get(FabricLoader.getInstance().getConfigDir().toString(), "m-config", removeInvalidChars(module.name)).toString());
     }
 
     /**
