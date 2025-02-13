@@ -25,7 +25,11 @@ public class ProfilesCommand extends Command {
 
             if (profile != null) {
                 profile.load();
-                info("Loaded profile (highlight)%s(default).", profile.name.get());
+                // info("Loaded profile (highlight)%s(default).", profile.name.get());
+                // mc.getToastManager().add(new MeteorToast(Items.BARRIER, "GitHub: Unauthorized", "Loaded profile (highlight)%s(default)." + profile.name.get()));
+                // mc.getToastManager().add(new SystemToast(SystemToast.Type.PERIODIC_NOTIFICATION, Text.of("Profile loaded"), Text.of("Loaded profile: " + profile.name.get())));
+                // mc.getInstance().player.displayClientMessage("Loaded profile: " + profile.name.get(), false);
+                // mc.player.sendMessage(Text.of("test"), MessageType.GAME_INFO, null);
             }
 
             return SINGLE_SUCCESS;
