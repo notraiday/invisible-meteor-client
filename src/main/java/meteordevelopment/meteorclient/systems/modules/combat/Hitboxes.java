@@ -32,6 +32,7 @@ public class Hitboxes extends Module {
         .name("expand")
         .description("How much to expand the hitbox of the entity.")
         .defaultValue(0.5)
+        .min(-1)
         .build()
     );
 
@@ -39,6 +40,21 @@ public class Hitboxes extends Module {
         .name("ignore-friends")
         .description("Doesn't expand the hitboxes of friends.")
         .defaultValue(true)
+        .build()
+    );
+    private final Setting<Boolean> separateTeam = sgGeneral.add(new BoolSetting.Builder()
+        .name("separate-team")
+        .description("Use separate settings for team.")
+        .defaultValue(true)
+        .build()
+    );
+    private final Setting<Double> teamValue = sgGeneral.add(new DoubleSetting.Builder()
+        .name("team-value")
+        .description("How much to expand the hitbox of your team.")
+        .defaultValue(0)
+        .sliderMin(-1)
+        .min(-1)
+        .visible(() -> separateTeam.get())
         .build()
     );
 
@@ -55,6 +71,7 @@ public class Hitboxes extends Module {
 
     public double getEntityValue(Entity entity) {
         if (!(isActive() && testWeapon()) || (ignoreFriends.get() && entity instanceof PlayerEntity && Friends.get().isFriend((PlayerEntity) entity))) return 0;
+        if (separateTeam.get() && entity instanceof PlayerEntity && mc.player.getScoreboardTeam() != null &&((PlayerEntity) entity).isTeammate(mc.player)) return teamValue.get();
         if (entities.get().contains(entity.getType())) return value.get();
         return 0;
     }
