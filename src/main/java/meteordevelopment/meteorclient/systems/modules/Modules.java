@@ -5,7 +5,6 @@
 
 package meteordevelopment.meteorclient.systems.modules;
 
-import com.mojang.serialization.Lifecycle;
 import it.unimi.dsi.fastutil.objects.Reference2ReferenceOpenHashMap;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.game.GameJoinedEvent;
@@ -43,26 +42,15 @@ import meteordevelopment.orbit.EventPriority;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.SimpleRegistry;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.math.random.Random;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.io.File;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Stream;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 public class Modules extends System<Modules> {
-    public static final ModuleRegistry REGISTRY = new ModuleRegistry();
-
     private static final List<Category> CATEGORIES = new ArrayList<>();
 
     private final List<Module> modules = new ArrayList<>();
@@ -93,7 +81,7 @@ public class Modules extends System<Modules> {
 
     @Override
     public void load(File folder) {
-        for (Module module : modules) {
+        for (Module module : getAll()) {
             for (SettingGroup group : module.settings) {
                 for (Setting<?> setting : group) setting.reset();
             }
@@ -117,15 +105,6 @@ public class Modules extends System<Modules> {
 
     public static Iterable<Category> loopCategories() {
         return CATEGORIES;
-    }
-
-    @Deprecated(forRemoval = true)
-    public static Category getCategoryByHash(int hash) {
-        for (Category category : CATEGORIES) {
-            if (category.hashCode() == hash) return category;
-        }
-
-        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -154,12 +133,16 @@ public class Modules extends System<Modules> {
         return moduleInstances.values();
     }
 
+    /**
+     * @deprecated Use {@link Modules#getAll()} instead.
+     */
+    @Deprecated(forRemoval = true)
     public List<Module> getList() {
         return modules;
     }
 
     public int getCount() {
-        return moduleInstances.values().size();
+        return moduleInstances.size();
     }
 
     public List<Module> getActive() {
@@ -313,7 +296,7 @@ public class Modules extends System<Modules> {
     @EventHandler
     private void onGameJoined(GameJoinedEvent event) {
         synchronized (active) {
-            for (Module module : modules) {
+            for (Module module : getAll()) {
                 if (module.isActive() && !module.runInMainMenu) {
                     MeteorClient.EVENT_BUS.subscribe(module);
                     module.onActivate();
@@ -325,7 +308,7 @@ public class Modules extends System<Modules> {
     @EventHandler
     private void onGameLeft(GameLeftEvent event) {
         synchronized (active) {
-            for (Module module : modules) {
+            for (Module module : getAll()) {
                 if (module.isActive() && !module.runInMainMenu) {
                     MeteorClient.EVENT_BUS.unsubscribe(module);
                     module.onDeactivate();
@@ -336,7 +319,7 @@ public class Modules extends System<Modules> {
 
     public void disableAll() {
         synchronized (active) {
-            for (Module module : modules) {
+            for (Module module : getAll()) {
                 if (module.isActive()) module.toggle();
             }
         }
@@ -360,10 +343,10 @@ public class Modules extends System<Modules> {
     public Modules fromTag(NbtCompound tag) {
         disableAll();
 
-        NbtList modulesTag = tag.getList("modules", 10);
+        NbtList modulesTag = tag.getListOrEmpty("modules");
         for (NbtElement moduleTagI : modulesTag) {
             NbtCompound moduleTag = (NbtCompound) moduleTagI;
-            Module module = get(moduleTag.getString("name"));
+            Module module = get(moduleTag.getString("name", ""));
             if (module != null) module.fromTag(moduleTag);
         }
 
@@ -411,6 +394,7 @@ public class Modules extends System<Modules> {
         add(new AutoArmor());
         add(new AutoCity());
         add(new AutoEXP());
+        add(new AutoLog());
         add(new AutoTotem());
         add(new AutoTrap());
         add(new AutoWeapon());
@@ -433,6 +417,8 @@ public class Modules extends System<Modules> {
     }
 
     private void initPlayer() {
+        add(new AirPlace());
+        add(new AntiAFK());
         add(new AntiHunger());
         add(new AutoEat());
         add(new AutoClicker());
@@ -440,6 +426,7 @@ public class Modules extends System<Modules> {
         add(new AutoGap());
         add(new AutoMend());
         add(new AutoReplenish());
+        add(new AutoRespawn());
         add(new AutoTool());
         add(new BreakDelay());
         add(new ChestSwap());
@@ -451,13 +438,14 @@ public class Modules extends System<Modules> {
         add(new LiquidInteract());
         add(new MiddleClickExtra());
         add(new Multitask());
+        add(new NameProtect());
         add(new NoInteract());
         add(new NoMiningTrace());
         add(new NoRotate());
+        add(new NoStatusEffects());
         add(new OffhandCrash());
         add(new Portals());
         add(new PotionSaver());
-        add(new PotionSpoof());
         add(new Reach());
         add(new Rotation());
         add(new SpeedMine());
@@ -466,7 +454,6 @@ public class Modules extends System<Modules> {
     private void initMovement() {
         add(new AirJump());
         add(new Anchor());
-        add(new AntiAFK());
         add(new AntiVoid());
         add(new AutoJump());
         add(new AutoWalk());
@@ -501,8 +488,11 @@ public class Modules extends System<Modules> {
     }
 
     private void initRender() {
+        add(new BetterTab());
         add(new BetterTooltips());
+        add(new BlockESP());
         add(new BlockSelection());
+        add(new Blur());
         add(new BossStack());
         add(new Breadcrumbs());
         add(new BreakIndicators());
@@ -523,12 +513,13 @@ public class Modules extends System<Modules> {
         add(new Marker());
         add(new Nametags());
         add(new NoRender());
-        add(new BlockESP());
+        add(new PopChams());
         add(new StorageESP());
         add(new TimeChanger());
         add(new Tracers());
         add(new Trail());
         add(new Trajectories());
+        add(new TunnelESP());
         add(new VoidESP());
         add(new WallHack());
         add(new WaypointsModule());
@@ -542,7 +533,6 @@ public class Modules extends System<Modules> {
     }
 
     private void initWorld() {
-        add(new AirPlace());
         add(new Ambience());
         add(new AutoBreed());
         add(new AutoBrewer());
@@ -574,24 +564,21 @@ public class Modules extends System<Modules> {
     }
 
     private void initMisc() {
-        add(new Swarm());
         add(new AntiPacketKick());
-        add(new AutoLog());
         add(new AutoReconnect());
-        add(new AutoRespawn());
         add(new BetterBeacons());
         add(new BetterChat());
         add(new BookBot());
         add(new DiscordPresence());
         add(new InventoryTweaks());
         add(new MessageAura());
-        add(new NameProtect());
         add(new Notebot());
         add(new Notifier());
         add(new PacketCanceller());
         add(new ServerSpoof());
         add(new SoundBlocker());
         add(new Spam());
+        add(new Swarm());
     }
 
 

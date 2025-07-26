@@ -103,15 +103,15 @@ public class Sprint extends Module {
         if (mc.currentScreen != null && !Modules.get().get(GUIMove.class).sprint.get()) return false;
 
         float movement = mode.get() == Mode.Rage
-            ? (Math.abs(mc.player.input.movementForward) + Math.abs(mc.player.input.movementSideways))
-            : mc.player.input.movementForward;
+            ? (Math.abs(mc.player.forwardSpeed) + Math.abs(mc.player.sidewaysSpeed))
+            : mc.player.forwardSpeed;
 
         if (movement <= (mc.player.isSubmergedInWater() ? 1.0E-5F : 0.8)) {
             if (mode.get() == Mode.Strict || !permaSprint.get()) return false;
         }
 
         boolean strictSprint = !(mc.player.isTouchingWater() && !mc.player.isSubmergedInWater())
-            && ((ClientPlayerEntityAccessor) mc.player).invokeCanSprint()
+            && ((ClientPlayerEntityAccessor) mc.player).meteor$invokeCanSprint()
             && (!mc.player.horizontalCollision || mc.player.collidedSoftly);
 
         return isActive() && (mode.get() == Mode.Rage || strictSprint);

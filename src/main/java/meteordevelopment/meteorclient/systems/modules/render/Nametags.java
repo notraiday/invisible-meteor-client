@@ -18,7 +18,7 @@ import meteordevelopment.meteorclient.systems.friends.Friends;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.systems.modules.Modules;
-import meteordevelopment.meteorclient.systems.modules.misc.NameProtect;
+import meteordevelopment.meteorclient.systems.modules.player.NameProtect;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.entity.EntityUtils;
 import meteordevelopment.meteorclient.utils.misc.Names;
@@ -357,7 +357,7 @@ public class Nametags extends Module {
             if (NametagUtils.to2D(pos, scale.get())) {
                 if (type == EntityType.PLAYER) renderNametagPlayer(event, (PlayerEntity) entity, shadow);
                 else if (type == EntityType.ITEM) renderNametagItem(((ItemEntity) entity).getStack(), shadow);
-                else if (type == EntityType.ITEM_FRAME)
+                else if (type == EntityType.ITEM_FRAME || type == EntityType.GLOW_ITEM_FRAME)
                     renderNametagItem(((ItemFrameEntity) entity).getHeldItemStack(), shadow);
                 else if (type == EntityType.TNT) renderTntNametag(ticksToTime(((TntEntity) entity).getFuse()), shadow);
                 else if (type == EntityType.TNT_MINECART && ((TntMinecartEntity) entity).isPrimed())
@@ -383,7 +383,7 @@ public class Nametags extends Module {
     private double getHeight(Entity entity) {
         double height = entity.getEyeHeight(entity.getPose());
 
-        if (entity.getType() == EntityType.ITEM || entity.getType() == EntityType.ITEM_FRAME) height += 0.2;
+        if (entity.getType() == EntityType.ITEM || entity.getType() == EntityType.ITEM_FRAME || entity.getType() == EntityType.GLOW_ITEM_FRAME) height += 0.2;
         else height += 0.5;
 
         return height;
@@ -391,7 +391,7 @@ public class Nametags extends Module {
 
     private void renderNametagPlayer(Render2DEvent event, PlayerEntity player, boolean shadow) {
         TextRenderer text = TextRenderer.get();
-        NametagUtils.begin(pos);
+        NametagUtils.begin(pos, event.drawContext);
 
         // Gamemode
         GameMode gm = EntityUtils.getGameMode(player);
@@ -516,7 +516,7 @@ public class Nametags extends Module {
             for (int i = 0; i < 6; i++) {
                 ItemStack stack = getItem(player, i);
 
-                RenderUtils.drawItem(event.drawContext, stack, (int) x, (int) y, 2, true);
+                RenderUtils.drawItem(event.drawContext, stack, (int) x, (int) y, 2, true, null, false);
 
                 if (stack.isDamageable() && itemDurability.get() != Durability.None) {
                     text.begin(0.75, false, true);
@@ -577,7 +577,7 @@ public class Nametags extends Module {
             }
         } else if (displayEnchants.get()) displayEnchants.set(false);
 
-        NametagUtils.end();
+        NametagUtils.end(event.drawContext);
     }
 
     private void renderNametagItem(ItemStack stack, boolean shadow) {
@@ -697,10 +697,10 @@ public class Nametags extends Module {
     private ItemStack getItem(PlayerEntity entity, int index) {
         return switch (index) {
             case 0 -> entity.getMainHandStack();
-            case 1 -> entity.getInventory().armor.get(3);
-            case 2 -> entity.getInventory().armor.get(2);
-            case 3 -> entity.getInventory().armor.get(1);
-            case 4 -> entity.getInventory().armor.get(0);
+            case 1 -> entity.getEquippedStack(EquipmentSlot.HEAD);
+            case 2 -> entity.getEquippedStack(EquipmentSlot.CHEST);
+            case 3 -> entity.getEquippedStack(EquipmentSlot.LEGS);
+            case 4 -> entity.getEquippedStack(EquipmentSlot.FEET);
             case 5 -> entity.getOffHandStack();
             default -> ItemStack.EMPTY;
         };
@@ -709,7 +709,7 @@ public class Nametags extends Module {
     private void drawBg(double x, double y, double width, double height) {
         Renderer2D.COLOR.begin();
         Renderer2D.COLOR.quad(x - 1, y - 1, width + 2, height + 2, background.get());
-        Renderer2D.COLOR.render(null);
+        Renderer2D.COLOR.render();
     }
 
     public enum Position {

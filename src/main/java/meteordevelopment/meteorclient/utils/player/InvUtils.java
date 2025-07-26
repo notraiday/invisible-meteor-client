@@ -58,7 +58,7 @@ public class InvUtils {
     public static boolean testInHotbar(Predicate<ItemStack> predicate) {
         if (testInHands(predicate)) return true;
 
-        for (int i = SlotUtils.HOTBAR_START; i < SlotUtils.HOTBAR_END; i++) {
+        for (int i = SlotUtils.HOTBAR_START; i <= SlotUtils.HOTBAR_END; i++) {
             ItemStack stack = mc.player.getInventory().getStack(i);
             if (predicate.test(stack)) return true;
         }
@@ -94,7 +94,7 @@ public class InvUtils {
         }
 
         if (testInMainHand(isGood)) {
-            return new FindItemResult(mc.player.getInventory().selectedSlot, mc.player.getMainHandStack().getCount());
+            return new FindItemResult(mc.player.getInventory().getSelectedSlot(), mc.player.getMainHandStack().getCount());
         }
 
         return find(isGood, 0, 8);
@@ -154,10 +154,10 @@ public class InvUtils {
     public static boolean swap(int slot, boolean swapBack) {
         if (slot == SlotUtils.OFFHAND) return true;
         if (slot < 0 || slot > 8) return false;
-        if (swapBack && previousSlot == -1) previousSlot = mc.player.getInventory().selectedSlot;
+        if (swapBack && previousSlot == -1) previousSlot = mc.player.getInventory().getSelectedSlot();
         else if (!swapBack) previousSlot = -1;
 
-        mc.player.getInventory().selectedSlot = slot;
+        mc.player.getInventory().setSelectedSlot(slot);
         ((IClientPlayerInteractionManager) mc.interactionManager).meteor$syncSelected();
         return true;
     }

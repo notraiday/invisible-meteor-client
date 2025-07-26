@@ -14,7 +14,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.AxeItem;
-import net.minecraft.item.SwordItem;
+import net.minecraft.registry.tag.ItemTags;
 
 import java.util.Set;
 
@@ -70,7 +70,7 @@ public class Hitboxes extends Module {
     }
 
     public double getEntityValue(Entity entity) {
-        if (!(isActive() && testWeapon()) || (ignoreFriends.get() && entity instanceof PlayerEntity && Friends.get().isFriend((PlayerEntity) entity))) return 0;
+        if (!(isActive() && testWeapon()) || (ignoreFriends.get() && entity instanceof PlayerEntity playerEntity && Friends.get().isFriend(playerEntity))) return 0;
         if (separateTeam.get() && entity instanceof PlayerEntity && mc.player.getScoreboardTeam() != null &&((PlayerEntity) entity).isTeammate(mc.player)) return teamValue.get();
         if (entities.get().contains(entity.getType())) return value.get();
         return 0;
@@ -78,6 +78,6 @@ public class Hitboxes extends Module {
 
     private boolean testWeapon() {
         if (!onlyOnWeapon.get()) return true;
-        return InvUtils.testInHands(itemStack -> itemStack.getItem() instanceof SwordItem || itemStack.getItem() instanceof AxeItem);
+        return InvUtils.testInHands(itemStack -> itemStack.isIn(ItemTags.SWORDS) || itemStack.getItem() instanceof AxeItem);
     }
 }

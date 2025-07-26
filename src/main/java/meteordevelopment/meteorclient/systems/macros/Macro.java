@@ -11,9 +11,9 @@ import meteordevelopment.meteorclient.utils.misc.ISerializable;
 import meteordevelopment.meteorclient.utils.misc.Keybind;
 import meteordevelopment.meteorclient.utils.misc.MeteorStarscript;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
-import meteordevelopment.starscript.Script;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import org.meteordev.starscript.Script;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -94,7 +94,7 @@ public class Macro implements ISerializable<Macro> {
     @Override
     public Macro fromTag(NbtCompound tag) {
         if (tag.contains("settings")) {
-            settings.fromTag(tag.getCompound("settings"));
+            settings.fromTag(tag.getCompoundOrEmpty("settings"));
         }
 
         return this;

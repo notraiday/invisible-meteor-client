@@ -122,9 +122,9 @@ public class NoFall extends Module {
         if (!Modules.get().isActive(Flight.class)) {
             if (mc.player.isGliding()) return;
             if (mc.player.getVelocity().y > -0.5) return;
-            ((PlayerMoveC2SPacketAccessor) event.packet).setOnGround(true);
+            ((PlayerMoveC2SPacketAccessor) event.packet).meteor$setOnGround(true);
         } else {
-            ((PlayerMoveC2SPacketAccessor) event.packet).setOnGround(true);
+            ((PlayerMoveC2SPacketAccessor) event.packet).meteor$setOnGround(true);
         }
     }
 
@@ -141,7 +141,7 @@ public class NoFall extends Module {
         // Airplace mode
         if (mode.get() == Mode.AirPlace) {
             // Test if fall damage setting is valid
-            if (!airPlaceMode.get().test(mc.player.fallDistance)) return;
+            if (!airPlaceMode.get().test((float) mc.player.fallDistance)) return;
 
             // Center and place block
             if (anchor.get()) PlayerUtils.centerPlayer();

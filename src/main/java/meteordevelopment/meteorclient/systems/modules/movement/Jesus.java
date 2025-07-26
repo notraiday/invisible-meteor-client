@@ -33,6 +33,7 @@ import net.minecraft.state.property.Properties;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.util.shape.VoxelShapes;
 import net.minecraft.world.GameMode;
@@ -185,12 +186,12 @@ public class Jesus extends Module {
             double swimHeight = mc.player.getSwimHeight();
 
             if (mc.player.isTouchingWater() && fluidHeight > swimHeight) {
-                ((LivingEntityAccessor) mc.player).swimUpwards(FluidTags.WATER);
-            } else if (mc.player.isOnGround() && fluidHeight <= swimHeight && ((LivingEntityAccessor) mc.player).getJumpCooldown() == 0) {
+                ((LivingEntityAccessor) mc.player).meteor$swimUpwards(FluidTags.WATER);
+            } else if (mc.player.isOnGround() && fluidHeight <= swimHeight && ((LivingEntityAccessor) mc.player).meteor$getJumpCooldown() == 0) {
                 mc.player.jump();
-                ((LivingEntityAccessor) mc.player).setJumpCooldown(10);
+                ((LivingEntityAccessor) mc.player).meteor$setJumpCooldown(10);
             } else {
-                ((LivingEntityAccessor) mc.player).swimUpwards(FluidTags.LAVA);
+                ((LivingEntityAccessor) mc.player).meteor$swimUpwards(FluidTags.LAVA);
             }
         }
 
@@ -228,7 +229,7 @@ public class Jesus extends Module {
 
     @EventHandler
     private void onCanWalkOnFluid(CanWalkOnFluidEvent event) {
-        if (mc.player != null && mc.player.isInSwimmingPose()) return;
+        if (mc.player != null && mc.player.isSwimming()) return;
         if ((event.fluidState.getFluid() == Fluids.WATER || event.fluidState.getFluid() == Fluids.FLOWING_WATER) && waterShouldBeSolid()) {
             event.walkOnFluid = true;
         }
@@ -261,7 +262,7 @@ public class Jesus extends Module {
         if (mc.player.isTouchingWater() || mc.player.isInLava() || mc.player.fallDistance > 3f || !isOverLiquid()) return;
 
         // If not actually moving, cancel packet
-        if (mc.player.input.movementForward == 0 && mc.player.input.movementSideways == 0) {
+        if (mc.player.input.getMovementInput().equals(Vec2f.ZERO)) {
             event.cancel();
             return;
         }

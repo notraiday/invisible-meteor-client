@@ -1,7 +1,7 @@
 plugins {
-    id("fabric-loom") version "1.9-SNAPSHOT"
+    id("fabric-loom") version "1.10-SNAPSHOT"
     id("maven-publish")
-    id("com.gradleup.shadow") version "9.0.0-beta4"
+    id("com.gradleup.shadow") version "9.0.0-beta11"
 }
 
 base {
@@ -9,7 +9,7 @@ base {
     group = properties["maven_group"] as String
 
     val suffix = if (project.hasProperty("build_number")) {
-         project.findProperty("build_number")
+        project.findProperty("build_number")
     } else {
         "local"
     }
@@ -27,8 +27,8 @@ repositories {
         url = uri("https://maven.meteordev.org/snapshots")
     }
     maven {
-        name = "vram"
-        url = uri("https://maven.vram.io//")
+        name = "Terraformers"
+        url = uri("https://maven.terraformersmc.com")
     }
     maven {
         name = "ViaVersion"
@@ -75,26 +75,30 @@ dependencies {
     minecraft("com.mojang:minecraft:${properties["minecraft_version"] as String}")
     mappings("net.fabricmc:yarn:${properties["yarn_mappings"] as String}:v2")
     modImplementation("net.fabricmc:fabric-loader:${properties["loader_version"] as String}")
+
+    modInclude(fabricApi.module("fabric-api-base", properties["fapi_version"] as String))
     modInclude(fabricApi.module("fabric-resource-loader-v0", properties["fapi_version"] as String))
 
     // Compat fixes
     modCompileOnly(fabricApi.module("fabric-renderer-indigo", properties["fapi_version"] as String))
-    modCompileOnly("maven.modrinth:sodium:${properties["sodium_version"] as String}") { isTransitive  = false }
-    modCompileOnly("maven.modrinth:lithium:${properties["lithium_version"] as String}") { isTransitive  = false }
-    modCompileOnly("maven.modrinth:iris:${properties["iris_version"] as String}") { isTransitive  = false }
-    modCompileOnly("com.viaversion:viafabricplus:${properties["viafabricplus_version"] as String}") { isTransitive  = false }
-    modCompileOnly("com.viaversion:viafabricplus-api:${properties["viafabricplus_version"] as String}") { isTransitive  = false }
+    modCompileOnly("maven.modrinth:sodium:${properties["sodium_version"] as String}") { isTransitive = false }
+    modCompileOnly("maven.modrinth:lithium:${properties["lithium_version"] as String}") { isTransitive = false }
+    modCompileOnly("maven.modrinth:iris:${properties["iris_version"] as String}") { isTransitive = false }
+    modCompileOnly("com.viaversion:viafabricplus:${properties["viafabricplus_version"] as String}") { isTransitive = false }
+    modCompileOnly("com.viaversion:viafabricplus-api:${properties["viafabricplus_version"] as String}") { isTransitive = false }
 
     // Baritone (https://github.com/MeteorDevelopment/baritone)
     modCompileOnly("meteordevelopment:baritone:${properties["baritone_version"] as String}-SNAPSHOT")
+    // ModMenu (https://github.com/TerraformersMC/ModMenu)
+    modCompileOnly("com.terraformersmc:modmenu:${properties["modmenu_version"] as String}")
 
     // Libraries
     library("meteordevelopment:orbit:${properties["orbit_version"] as String}")
-    library("meteordevelopment:starscript:${properties["starscript_version"] as String}")
+    library("org.meteordev:starscript:${properties["starscript_version"] as String}")
     library("meteordevelopment:discord-ipc:${properties["discordipc_version"] as String}")
     library("org.reflections:reflections:${properties["reflections_version"] as String}")
-    library("io.netty:netty-handler-proxy:${properties["netty_version"] as String}") { isTransitive  = false }
-    library("io.netty:netty-codec-socks:${properties["netty_version"] as String}") { isTransitive  = false }
+    library("io.netty:netty-handler-proxy:${properties["netty_version"] as String}") { isTransitive = false }
+    library("io.netty:netty-codec-socks:${properties["netty_version"] as String}") { isTransitive = false }
     library("de.florianmichael:WaybackAuthLib:${properties["waybackauthlib_version"] as String}")
 
     // Launch sub project
@@ -117,11 +121,11 @@ tasks {
         val commit = project.findProperty("commit")?.toString() ?: ""
 
         val propertyMap = mapOf(
-            "version"           to project.version,
-            "build_number"      to buildNumber,
-            "commit"            to commit,
+            "version" to project.version,
+            "build_number" to buildNumber,
+            "commit" to commit,
             "minecraft_version" to project.property("minecraft_version"),
-            "loader_version"    to project.property("loader_version")
+            "loader_version" to project.property("loader_version")
         )
 
         inputs.properties(propertyMap)
@@ -131,9 +135,10 @@ tasks {
     }
 
     jar {
-        val licenseSuffix = project.base.archivesName.get()
+        inputs.property("archivesName", project.base.archivesName.get())
+
         from("LICENSE") {
-            rename { "${it}_${licenseSuffix}" }
+            rename { "${it}_${inputs.properties["archivesName"]}" }
         }
 
         manifest {
@@ -153,14 +158,17 @@ tasks {
 
     withType<JavaCompile> {
         options.release = 21
+        options.compilerArgs.add("-Xlint:deprecation")
+        options.compilerArgs.add("-Xlint:unchecked")
     }
 
     shadowJar {
         configurations = listOf(project.configurations.shadow.get())
 
-        val licenseSuffix = project.base.archivesName.get()
+        inputs.property("archivesName", project.base.archivesName.get())
+
         from("LICENSE") {
-            rename { "${it}_${licenseSuffix}" }
+            rename { "${it}_${inputs.properties["archivesName"]}" }
         }
 
         dependencies {
@@ -176,7 +184,7 @@ tasks {
     }
 
     javadoc {
-        with (options as StandardJavadocDocletOptions) {
+        with(options as StandardJavadocDocletOptions) {
             addStringOption("Xdoclint:none", "-quiet")
             addStringOption("encoding", "UTF-8")
             addStringOption("charSet", "UTF-8")

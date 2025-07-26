@@ -13,6 +13,7 @@ import meteordevelopment.meteorclient.renderer.Renderer3D;
 import meteordevelopment.meteorclient.renderer.ShapeMode;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderPhase;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.EntityRenderer;
@@ -40,6 +41,7 @@ public class WireframeEntityRenderer {
     private WireframeEntityRenderer() {
     }
 
+    @SuppressWarnings("unchecked")
     public static void render(Render3DEvent event, Entity entity, double scale, Color sideColor, Color lineColor, ShapeMode shapeMode) {
         WireframeEntityRenderer.renderer = event.renderer;
         WireframeEntityRenderer.sideColor = sideColor;
@@ -52,7 +54,6 @@ public class WireframeEntityRenderer {
         offsetY = MathHelper.lerp(tickDelta, entity.lastRenderY, entity.getY());
         offsetZ = MathHelper.lerp(tickDelta, entity.lastRenderZ, entity.getZ());
 
-        //noinspection unchecked
         var renderer = (EntityRenderer<Entity, EntityRenderState>) mc.getEntityRenderDispatcher().getRenderer(entity);
         var state = renderer.getAndUpdateRenderState(entity, tickDelta);
 
@@ -74,7 +75,7 @@ public class WireframeEntityRenderer {
         @Override
         public VertexConsumer getBuffer(RenderLayer layer) {
             //noinspection ConstantValue
-            if (layer instanceof IMultiPhase phase && ((IMultiPhaseParameters) (Object) phase.meteor$getParameters()).meteor$getTarget() == RenderLayer.ITEM_ENTITY_TARGET) {
+            if (layer instanceof IMultiPhase phase && ((IMultiPhaseParameters) (Object) phase.meteor$getParameters()).meteor$getTarget() == RenderPhase.ITEM_ENTITY_TARGET) {
                 return NoopVertexConsumer.INSTANCE;
             }
 
@@ -105,21 +106,15 @@ public class WireframeEntityRenderer {
             i++;
 
             if (i == 4) {
-                if (shapeMode.sides()) {
-                    renderer.triangles.quad(
-                        renderer.triangles.vec3(offsetX + xs[0], offsetY + ys[0], offsetZ + zs[0]).color(sideColor).next(),
-                        renderer.triangles.vec3(offsetX + xs[1], offsetY + ys[1], offsetZ + zs[1]).color(sideColor).next(),
-                        renderer.triangles.vec3(offsetX + xs[2], offsetY + ys[2], offsetZ + zs[2]).color(sideColor).next(),
-                        renderer.triangles.vec3(offsetX + xs[3], offsetY + ys[3], offsetZ + zs[3]).color(sideColor).next()
-                    );
-                }
-
-                if (shapeMode.lines()) {
-                    renderer.line(offsetX + xs[0], offsetY + ys[0], offsetZ + zs[0], offsetX + xs[1], offsetY + ys[1], offsetZ + zs[1], lineColor);
-                    renderer.line(offsetX + xs[1], offsetY + ys[1], offsetZ + zs[1], offsetX + xs[2], offsetY + ys[2], offsetZ + zs[2], lineColor);
-                    renderer.line(offsetX + xs[2], offsetY + ys[2], offsetZ + zs[2], offsetX + xs[3], offsetY + ys[3], offsetZ + zs[3], lineColor);
-                    renderer.line(offsetX + xs[0], offsetY + ys[0], offsetZ + zs[0], offsetX + xs[0], offsetY + ys[0], offsetZ + zs[0], lineColor);
-                }
+                renderer.side(
+                    offsetX + xs[0], offsetY + ys[0], offsetZ + zs[0],
+                    offsetX + xs[1], offsetY + ys[1], offsetZ + zs[1],
+                    offsetX + xs[2], offsetY + ys[2], offsetZ + zs[2],
+                    offsetX + xs[3], offsetY + ys[3], offsetZ + zs[3],
+                    sideColor,
+                    lineColor,
+                    shapeMode
+                );
 
                 i = 0;
             }

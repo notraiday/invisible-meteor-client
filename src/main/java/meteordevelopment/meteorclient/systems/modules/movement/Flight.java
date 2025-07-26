@@ -17,6 +17,7 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.network.packet.s2c.play.PlayerAbilitiesS2CPacket;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.util.math.Vec3d;
 
@@ -130,7 +131,7 @@ public class Flight extends Module {
 
             if (antiKickMode.get() == AntiKickMode.Packet) {
                 // Resend movement packets
-                ((ClientPlayerEntityAccessor) mc.player).setTicksSinceLastPositionPacketSent(20);
+                ((ClientPlayerEntityAccessor) mc.player).meteor$setTicksSinceLastPositionPacketSent(20);
             }
         } else if (delayLeft <= 0) {
             boolean shouldReturn = false;
@@ -142,7 +143,7 @@ public class Flight extends Module {
                 }
             } else if (antiKickMode.get() == AntiKickMode.Packet && offLeft == offTime.get()) {
                 // Resend movement packets
-                ((ClientPlayerEntityAccessor) mc.player).setTicksSinceLastPositionPacketSent(20);
+                ((ClientPlayerEntityAccessor) mc.player).meteor$setTicksSinceLastPositionPacketSent(20);
             }
 
             offLeft--;
@@ -182,7 +183,7 @@ public class Flight extends Module {
             shouldFlyDown(currentY, this.lastPacketY) && isEntityOnAir(mc.player)) {
             // actual check is for >= -0.03125D, but we have to do a bit more than that
             // due to the fact that it's a bigger or *equal* to, and not just a bigger than
-            ((PlayerMoveC2SPacketAccessor) packet).setY(lastPacketY - 0.03130D);
+            ((PlayerMoveC2SPacketAccessor) packet).meteor$setY(lastPacketY - 0.03130D);
         } else {
             lastPacketY = currentY;
         }
@@ -225,6 +226,16 @@ public class Flight extends Module {
             antiKickPacket(fullPacket, mc.player.getY());
             mc.getNetworkHandler().sendPacket(fullPacket);
         }
+    }
+
+    @EventHandler
+    private void onReceivePacket(PacketEvent.Receive event) {
+        if (!(event.packet instanceof PlayerAbilitiesS2CPacket packet) || mode.get() != Mode.Abilities) return;
+        event.cancel(); // Cancel packet, so fly won't be toggled
+
+        mc.player.getAbilities().invulnerable = packet.isInvulnerable();
+        mc.player.getAbilities().creativeMode = packet.isCreativeMode();
+        mc.player.getAbilities().setWalkSpeed(packet.getWalkSpeed());
     }
 
     private boolean shouldFlyDown(double currentY, double lastY) {

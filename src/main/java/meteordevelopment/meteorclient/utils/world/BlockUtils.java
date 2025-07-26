@@ -77,7 +77,7 @@ public class BlockUtils {
 
     public static boolean place(BlockPos blockPos, FindItemResult findItemResult, boolean rotate, int rotationPriority, boolean swingHand, boolean checkEntities, boolean swapBack) {
         if (findItemResult.isOffhand()) {
-            return place(blockPos, Hand.OFF_HAND, mc.player.getInventory().selectedSlot, rotate, rotationPriority, swingHand, checkEntities, swapBack);
+            return place(blockPos, Hand.OFF_HAND, mc.player.getInventory().getSelectedSlot(), rotate, rotationPriority, swingHand, checkEntities, swapBack);
         } else if (findItemResult.isHotbar()) {
             return place(blockPos, Hand.MAIN_HAND, findItemResult.slot(), rotate, rotationPriority, swingHand, checkEntities, swapBack);
         }
@@ -306,22 +306,12 @@ public class BlockUtils {
             || block instanceof TrapdoorBlock;
     }
 
-    public static MobSpawn isValidMobSpawn(BlockPos blockPos, boolean newMobSpawnLightLevel) {
-        return isValidMobSpawn(blockPos, mc.world.getBlockState(blockPos), newMobSpawnLightLevel ? 0 : 7);
-    }
 
     public static MobSpawn isValidMobSpawn(BlockPos blockPos, BlockState blockState, int spawnLightLimit) {
-        if (!(blockState.getBlock() instanceof AirBlock)) return MobSpawn.Never;
+        boolean snow = blockState.getBlock() instanceof SnowBlock && blockState.get(SnowBlock.LAYERS) == 1;
+        if (!blockState.isAir() && !snow) return MobSpawn.Never;
 
-        BlockPos down = blockPos.down();
-        BlockState downState = mc.world.getBlockState(down);
-        if (downState.getBlock() == Blocks.BEDROCK) return MobSpawn.Never;
-
-        if (!topSurface(downState)) {
-            if (downState.getCollisionShape(mc.world, down) != VoxelShapes.fullCube())
-                return MobSpawn.Never;
-            if (downState.isTransparent()) return MobSpawn.Never;
-        }
+        if (!isValidSpawnBlock(mc.world.getBlockState(blockPos.down()))) return MobSpawn.Never;
 
         if (mc.world.getLightLevel(LightType.BLOCK, blockPos) > spawnLightLimit) return MobSpawn.Never;
         else if (mc.world.getLightLevel(LightType.SKY, blockPos) > spawnLightLimit) return  MobSpawn.Potential;
@@ -329,9 +319,19 @@ public class BlockUtils {
         return MobSpawn.Always;
     }
 
-    public static boolean topSurface(BlockState blockState) {
-        if (blockState.getBlock() instanceof SlabBlock && blockState.get(SlabBlock.TYPE) == SlabType.TOP) return true;
-        else return blockState.getBlock() instanceof StairsBlock && blockState.get(StairsBlock.HALF) == BlockHalf.TOP;
+    public static boolean isValidSpawnBlock(BlockState blockState) {
+        Block block = blockState.getBlock();
+
+        if (block == Blocks.BEDROCK
+            || block == Blocks.BARRIER
+            || block instanceof TransparentBlock
+            || block instanceof ScaffoldingBlock) return false;
+
+        if (block == Blocks.SOUL_SAND || block == Blocks.MUD) return true;
+        if (block instanceof SlabBlock && blockState.get(SlabBlock.TYPE) == SlabType.TOP) return true;
+        if (block instanceof StairsBlock && blockState.get(StairsBlock.HALF) == BlockHalf.TOP) return true;
+
+        return blockState.isOpaqueFullCube();
     }
 
     // Finds the best block direction to get when interacting with the block.
@@ -365,7 +365,7 @@ public class BlockUtils {
         float hardness = state.getHardness(null, null);
         if (hardness == -1) return 0;
         else {
-            return getBlockBreakingSpeed(slot, state) / hardness / (!state.isToolRequired() || mc.player.getInventory().main.get(slot).isSuitableFor(state) ? 30 : 100);
+            return getBlockBreakingSpeed(slot, state) / hardness / (!state.isToolRequired() || mc.player.getInventory().getMainStacks().get(slot).isSuitableFor(state) ? 30 : 100);
         }
     }
 
@@ -373,7 +373,7 @@ public class BlockUtils {
      * @see net.minecraft.entity.player.PlayerEntity#getBlockBreakingSpeed(BlockState)
      */
     private static double getBlockBreakingSpeed(int slot, BlockState block) {
-        double speed = mc.player.getInventory().main.get(slot).getMiningSpeedMultiplier(block);
+        double speed = mc.player.getInventory().getMainStacks().get(slot).getMiningSpeedMultiplier(block);
 
         if (speed > 1) {
             ItemStack tool = mc.player.getInventory().getStack(slot);

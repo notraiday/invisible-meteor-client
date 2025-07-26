@@ -26,7 +26,7 @@ import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 public class TheAlteningAccount extends Account<TheAlteningAccount> implements TokenAccount {
     private static final Environment ENVIRONMENT = new Environment("http://sessionserver.thealtening.com", "http://authserver.thealtening.com", "The Altening");
-    private static final YggdrasilAuthenticationService SERVICE = new YggdrasilAuthenticationService(((MinecraftClientAccessor) mc).getProxy(), ENVIRONMENT);
+    private static final YggdrasilAuthenticationService SERVICE = new YggdrasilAuthenticationService(((MinecraftClientAccessor) mc).meteor$getProxy(), ENVIRONMENT);
     private String token;
     private @Nullable WaybackAuthLib auth;
 
@@ -59,7 +59,7 @@ public class TheAlteningAccount extends Account<TheAlteningAccount> implements T
     @Override
     public boolean login() {
         if (auth == null) return false;
-        applyLoginEnvironment(SERVICE, YggdrasilMinecraftSessionServiceAccessor.createYggdrasilMinecraftSessionService(SERVICE.getServicesKeySet(), SERVICE.getProxy(), ENVIRONMENT));
+        applyLoginEnvironment(SERVICE, YggdrasilMinecraftSessionServiceAccessor.meteor$createYggdrasilMinecraftSessionService(SERVICE.getServicesKeySet(), SERVICE.getProxy(), ENVIRONMENT));
 
         try {
             setSession(new Session(auth.getCurrentProfile().getName(), auth.getCurrentProfile().getId(), auth.getAccessToken(), Optional.empty(), Optional.empty(), Session.AccountType.MOJANG));
@@ -98,11 +98,11 @@ public class TheAlteningAccount extends Account<TheAlteningAccount> implements T
 
     @Override
     public TheAlteningAccount fromTag(NbtCompound tag) {
-        if (!tag.contains("name") || !tag.contains("cache") || !tag.contains("token")) throw new NbtException();
+        if (tag.getString("name").isEmpty() || tag.getCompound("cache").isEmpty() || tag.getString("token").isEmpty()) throw new NbtException();
 
-        name = tag.getString("name");
-        token = tag.getString("token");
-        cache.fromTag(tag.getCompound("cache"));
+        name = tag.getString("name").get();
+        token = tag.getString("token").get();
+        cache.fromTag(tag.getCompound("cache").get());
 
         return this;
     }

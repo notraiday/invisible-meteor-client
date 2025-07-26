@@ -14,8 +14,8 @@ import meteordevelopment.meteorclient.systems.modules.movement.Sprint;
 import meteordevelopment.meteorclient.systems.modules.movement.elytrafly.ElytraFlightModes;
 import meteordevelopment.meteorclient.systems.modules.movement.elytrafly.ElytraFly;
 import meteordevelopment.meteorclient.systems.modules.movement.elytrafly.modes.Bounce;
+import meteordevelopment.meteorclient.systems.modules.player.NoStatusEffects;
 import meteordevelopment.meteorclient.systems.modules.player.OffhandCrash;
-import meteordevelopment.meteorclient.systems.modules.player.PotionSpoof;
 import meteordevelopment.meteorclient.systems.modules.render.HandView;
 import meteordevelopment.meteorclient.systems.modules.render.NoRender;
 import net.minecraft.component.DataComponentTypes;
@@ -31,7 +31,9 @@ import net.minecraft.util.Hand;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.*;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -78,11 +80,11 @@ public abstract class LivingEntityMixin extends Entity {
         return hand;
     }
 
-    @ModifyConstant(method = "getHandSwingDuration", constant = @Constant(intValue = 6))
-    private int getHandSwingDuration(int constant) {
-        if ((Object) this != mc.player) return constant;
+    @ModifyExpressionValue(method = "getHandSwingDuration", at = @At(value = "CONSTANT", args = "intValue=6"))
+    private int getHandSwingDuration(int original) {
+        if ((Object) this != mc.player) return original;
 
-        return Modules.get().get(HandView.class).isActive() && mc.options.getPerspective().isFirstPerson() ? Modules.get().get(HandView.class).swingSpeed.get() : constant;
+        return Modules.get().get(HandView.class).isActive() && mc.options.getPerspective().isFirstPerson() ? Modules.get().get(HandView.class).swingSpeed.get() : original;
     }
 
     @ModifyReturnValue(method = "isGliding", at = @At("RETURN"))
@@ -111,7 +113,7 @@ public abstract class LivingEntityMixin extends Entity {
 
     @ModifyReturnValue(method = "hasStatusEffect", at = @At("RETURN"))
     private boolean hasStatusEffect(boolean original, RegistryEntry<StatusEffect> effect) {
-        if (Modules.get().get(PotionSpoof.class).shouldBlock(effect.value())) return false;
+        if (Modules.get().get(NoStatusEffects.class).shouldBlock(effect.value())) return false;
 
         return original;
     }
@@ -121,8 +123,8 @@ public abstract class LivingEntityMixin extends Entity {
         if ((Object) this != mc.player) return original;
         if (!Modules.get().get(Sprint.class).rageSprint()) return original;
 
-        float forward = Math.signum(mc.player.input.movementForward);
-        float strafe = 90 * Math.signum(mc.player.input.movementSideways);
+        float forward = Math.signum(mc.player.forwardSpeed);
+        float strafe = 90 * Math.signum(mc.player.sidewaysSpeed);
         if (forward != 0) strafe *= (forward * 0.5f);
 
         original -= strafe;
@@ -137,6 +139,6 @@ public abstract class LivingEntityMixin extends Entity {
         if (!Modules.get().get(Sprint.class).rageSprint()) return original;
 
         // only add the extra velocity if you're actually moving, otherwise you'll jump in place and move forward
-        return original && (Math.abs(mc.player.input.movementForward) > 1.0E-5F || Math.abs(mc.player.input.movementSideways) > 1.0E-5F);
+        return original && (Math.abs(mc.player.forwardSpeed) > 1.0E-5F || Math.abs(mc.player.sidewaysSpeed) > 1.0E-5F);
     }
 }
