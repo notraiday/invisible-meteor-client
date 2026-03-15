@@ -87,8 +87,6 @@ public class MeteorClient implements ClientModInitializer {
             return;
         }
 
-        LOG.info("Initializing {}", NAME);
-
         // Global minecraft client accessor
         mc = MinecraftClient.getInstance();
 

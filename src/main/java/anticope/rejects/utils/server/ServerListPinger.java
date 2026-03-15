@@ -18,15 +18,12 @@ import net.minecraft.server.ServerMetadata;
 import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 import net.minecraft.util.profiler.MultiValueDebugSampleLogImpl;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.*;
 
 public class ServerListPinger {
-    private static final Logger LOGGER = LogManager.getLogger();
     private final List<ClientConnection> clientConnections = Collections.synchronizedList(Lists.newArrayList());
     private final ArrayList<IServerFinderDisconnectListener> disconnectListeners = new ArrayList<>();
     private boolean notifiedDisconnectListeners = false;
@@ -113,7 +110,6 @@ public class ServerListPinger {
 
             public void onDisconnected(Text reason) {
                 if (!this.sentQuery) {
-                    ServerListPinger.LOGGER.error("Can't ping {}: {}", entry.address, reason.getString());
                     entry.label = "multiplayer.status.cannot_connect";
                     entry.playerCountLabel = "";
                     entry.playerCount = 0;
@@ -136,8 +132,7 @@ public class ServerListPinger {
         try {
             clientConnection.connect(serverAddress.getAddress(), serverAddress.getPort(), clientQueryPacketListener);
             clientConnection.send(QueryRequestC2SPacket.INSTANCE);
-        } catch (Throwable var8) {
-            LOGGER.error("Failed to ping server {}", serverAddress, var8);
+        } catch (Throwable ignored) {
         }
 
     }

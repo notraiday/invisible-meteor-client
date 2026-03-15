@@ -120,7 +120,6 @@ public class LegacyServerFinderScreen extends WindowScreen {
             state = ServerFinderState.UNKNOWN_HOST;
 
         } catch (Exception e) {
-            e.printStackTrace();
             state = ServerFinderState.ERROR;
         }
     }

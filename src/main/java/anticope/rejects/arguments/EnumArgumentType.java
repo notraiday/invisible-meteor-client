@@ -26,8 +26,7 @@ public class EnumArgumentType<T extends Enum<?>> implements ArgumentType<T> {
         try {
             //noinspection unchecked
             values = (T[]) defaultValue.getClass().getMethod("values").invoke(null);
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            e.printStackTrace();
+        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException ignored) {
         }
     }
 

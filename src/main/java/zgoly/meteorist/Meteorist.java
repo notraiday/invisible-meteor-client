@@ -9,6 +9,8 @@ import meteordevelopment.meteorclient.systems.hud.Hud;
 import meteordevelopment.meteorclient.systems.hud.HudGroup;
 import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Modules;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.item.Items;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
@@ -29,22 +31,10 @@ import zgoly.meteorist.modules.slotclick.SlotClick;
 import zgoly.meteorist.settings.StringPairSetting;
 import zgoly.meteorist.utils.misc.MeteoristStarscript;
 
-import java.util.Random;
-
 public class Meteorist extends MeteorAddon {
     public static final Logger LOG = LoggerFactory.getLogger("NOP");
     public static final Category CATEGORY = new Category("Meteorist", Items.FIRE_CHARGE.getDefaultStack());
     public static final HudGroup HUD_GROUP = new HudGroup("Meteorist");
-    private static final String[] MESSAGES = {
-            "Meteorist is coming",
-            "Meteorist enabled",
-            "Meteorist is here",
-            "Meteorist will save us",
-            "Meteorist joined the game",
-            "Meteorist is ready to go",
-            "Meteorist is on the move",
-            "Meteorist... Was never real?"
-    };
     public static String MOD_ID = "meteorist";
     public static GuiTexture ARROW_UP;
     public static GuiTexture ARROW_DOWN;
@@ -57,16 +47,10 @@ public class Meteorist extends MeteorAddon {
 
     @Override
     public void onInitialize() {
-        // Log random message
-        Random random = new Random();
-        LOG.info(MESSAGES[random.nextInt(MESSAGES.length)]);
-
         // Factories
-        LOG.info("Registering custom factories...");
         StringPairSetting.register();
 
         // Modules
-        LOG.info("Registering modules...");
         Modules.get().add(new AutoCrafter());
         Modules.get().add(new AutoFeed());
         Modules.get().add(new AutoFix());
@@ -96,14 +80,12 @@ public class Meteorist extends MeteorAddon {
         Modules.get().add(new ZoomPlus());
 
         // Commands
-        LOG.info("Registering commands...");
         Commands.add(new DataCommand());
         Commands.add(new InstructionsCommand());
         Commands.add(new InteractCommand());
         Commands.add(new PlayersInfoCommand());
 
         // HUD text presets
-        LOG.info("Registering HUD text presets...");
         MeteoristStarscript.init();
         Hud.get().register(TextPresets.INFO);
 
@@ -120,6 +102,11 @@ public class Meteorist extends MeteorAddon {
     }
 
     @Override
+    public String getWebsite() {
+        return "https://github.com/Zgoly/Meteorist";
+    }
+
+    @Override
     public String getPackage() {
         return getRepo().owner() + "." + getRepo().name();
     }
@@ -127,5 +114,15 @@ public class Meteorist extends MeteorAddon {
     @Override
     public GithubRepo getRepo() {
         return new GithubRepo("zgoly", "meteorist");
+    }
+
+    @Override
+    public String getCommit() {
+        // Embedded builds may not ship as standalone "meteorist" mod metadata.
+        ModContainer container = FabricLoader.getInstance().getModContainer(MOD_ID).orElse(null);
+        if (container == null) return null;
+
+        String commit = container.getMetadata().getCustomValue(MOD_ID + ":commit").getAsString();
+        return commit.isEmpty() ? null : commit;
     }
 }

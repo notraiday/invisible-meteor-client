@@ -17,8 +17,6 @@ import com.mojang.authlib.yggdrasil.response.MinecraftTexturesPayload;
 import com.mojang.util.UUIDTypeAdapter;
 import meteordevelopment.meteorclient.utils.network.Http;
 import net.minecraft.client.session.Session;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.net.Proxy;
 import java.nio.charset.StandardCharsets;
@@ -56,7 +54,6 @@ public class CustomYggdrasilLogin {
     }
 
     public static class LocalYggdrasilMinecraftSessionService extends YggdrasilMinecraftSessionService {
-        private static final Logger LOGGER = LogManager.getLogger();
         private final ServicesKeyInfo publicKey;
         private final Gson gson = new GsonBuilder().registerTypeAdapter(UUID.class, new UUIDTypeAdapter()).create();
 
@@ -72,8 +69,7 @@ public class CustomYggdrasilLogin {
             try {
                 byte[] byteKey = Base64.getDecoder().decode(key.replace("\n", ""));
                 return YggdrasilServicesKeyInfo.parse(byteKey);
-            } catch (IllegalArgumentException e) {
-                e.printStackTrace();
+            } catch (IllegalArgumentException ignored) {
             }
             return null;
         }
@@ -97,8 +93,7 @@ public class CustomYggdrasilLogin {
             try {
                 final String json = new String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8);
                 result = gson.fromJson(json, MinecraftTexturesPayload.class);
-            } catch (final JsonParseException | IllegalArgumentException e) {
-                LOGGER.error("Could not decode textures payload", e);
+            } catch (final JsonParseException | IllegalArgumentException ignored) {
                 return MinecraftProfileTextures.EMPTY;
             }
 

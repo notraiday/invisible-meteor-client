@@ -41,8 +41,7 @@ public class PlayersInfoCommand extends Command {
                     outputStream.write(getPlayersInfo(context).getBytes());
                     outputStream.close();
                     info("Players info was saved to (highlight)%s(default)", result);
-                } catch (Exception e) {
-                    e.printStackTrace();
+                } catch (Exception ignored) {
                 }
             }
         }

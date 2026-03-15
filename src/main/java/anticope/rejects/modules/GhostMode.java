@@ -32,10 +32,8 @@ public class GhostMode extends Module {
     public void onDeactivate() {
         super.onDeactivate();
         active = false;
-        warning("You are no longer in a ghost mode!");
         if (mc.player != null && mc.player.networkHandler != null) {
             mc.player.requestRespawn();
-            info("Respawn request has been sent to the server.");
         }
     }
 
@@ -59,7 +57,6 @@ public class GhostMode extends Module {
             event.cancel();
             if (!active) {
                 active = true;
-                info("You are now in a ghost mode. ");
             }
         }
     }

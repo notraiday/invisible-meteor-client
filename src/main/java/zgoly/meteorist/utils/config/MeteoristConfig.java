@@ -29,8 +29,7 @@ public class MeteoristConfig {
                 file.createNewFile();
             }
             NbtIo.write(data, Path.of(path));
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException ignored) {
         }
     }
 
@@ -47,8 +46,7 @@ public class MeteoristConfig {
         try {
             File file = new File(path);
             if (file.exists()) data = NbtIo.read(Path.of(path));
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (IOException ignored) {
         }
         return data;
     }

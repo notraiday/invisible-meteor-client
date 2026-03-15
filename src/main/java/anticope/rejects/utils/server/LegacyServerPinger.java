@@ -1,6 +1,5 @@
 package anticope.rejects.utils.server;
 
-import anticope.rejects.MeteorRejectsAddon;
 import net.minecraft.client.network.MultiplayerServerListPinger;
 import net.minecraft.client.network.ServerInfo;
 
@@ -26,18 +25,14 @@ public class LegacyServerPinger {
 
     private void pingInCurrentThread(String ip, int port) {
         MultiplayerServerListPinger pinger = new MultiplayerServerListPinger();
-        MeteorRejectsAddon.LOG.info("Pinging {}:{}...", ip, port);
 
         try {
             pinger.add(server, () -> {}, () -> {});
-            MeteorRejectsAddon.LOG.info("Ping successful: {}:{}", ip, port);
 
         } catch (UnknownHostException e) {
-            MeteorRejectsAddon.LOG.warn("Unknown host: {}:{}", ip, port);
             failed = true;
 
         } catch (Exception e2) {
-            MeteorRejectsAddon.LOG.warn("Ping failed: {}:{}", ip, port);
             failed = true;
         }
 

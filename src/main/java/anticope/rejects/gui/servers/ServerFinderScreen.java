@@ -170,7 +170,6 @@ public class ServerFinderScreen extends WindowScreen implements IServerFinderDon
             state = ServerFinderState.UNKNOWN_HOST;
 
         } catch (Exception e) {
-            e.printStackTrace();
             state = ServerFinderState.ERROR;
         }
     }

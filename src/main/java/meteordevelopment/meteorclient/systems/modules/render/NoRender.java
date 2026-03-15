@@ -179,6 +179,14 @@ public class NoRender extends Module {
         .build()
     );
 
+    private final Setting<Boolean> hideVanillaHud = sgHUD.add(new BoolSetting.Builder()
+        .name("hide-vanilla-hud")
+        .description("Forces Minecraft vanilla HUD hidden while this module is active.")
+        .defaultValue(false)
+        .onChanged(this::onHideVanillaHudChanged)
+        .build()
+    );
+
     // World
 
     private final Setting<Boolean> noWeather = sgWorld.add(new BoolSetting.Builder()
@@ -379,6 +387,9 @@ public class NoRender extends Module {
         .build()
     );
 
+    private boolean savedHudHidden;
+    private boolean forcedHudHidden;
+
     public NoRender() {
         super(Categories.Render, "no-render", "Disables certain animations or overlays from rendering.");
     }
@@ -386,11 +397,34 @@ public class NoRender extends Module {
     @Override
     public void onActivate() {
         if (noCaveCulling.get() || noTextureRotations.get()) mc.worldRenderer.reload();
+        if (hideVanillaHud.get()) forceVanillaHudHidden();
     }
 
     @Override
     public void onDeactivate() {
+        restoreVanillaHudState();
         if (noCaveCulling.get() || noTextureRotations.get()) mc.worldRenderer.reload();
+    }
+
+    private void onHideVanillaHudChanged(boolean enabled) {
+        if (!isActive()) return;
+        if (enabled) forceVanillaHudHidden();
+        else restoreVanillaHudState();
+    }
+
+    private void forceVanillaHudHidden() {
+        if (!forcedHudHidden) {
+            savedHudHidden = mc.options.hudHidden;
+            forcedHudHidden = true;
+        }
+
+        mc.options.hudHidden = true;
+    }
+
+    private void restoreVanillaHudState() {
+        if (!forcedHudHidden) return;
+        mc.options.hudHidden = savedHudHidden;
+        forcedHudHidden = false;
     }
 
     // Overlay

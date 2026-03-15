@@ -1,6 +1,5 @@
 package anticope.rejects.utils;
 
-import anticope.rejects.MeteorRejectsAddon;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.entity.player.PlayerMoveEvent;
 import meteordevelopment.meteorclient.mixininterface.IVec3d;
@@ -20,7 +19,6 @@ public class RejectsUtils {
     @PostInit
     public static void init() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("saving seeds...");
             RejectsConfig.get().save(MeteorClient.FOLDER);
         }));
     }
@@ -28,10 +26,7 @@ public class RejectsUtils {
     public static String getModuleName(String name) {
         int dupe = 0;
         Modules modules = Modules.get();
-        if (modules == null) {
-            MeteorRejectsAddon.LOG.warn("Module instantiation before Modules initialized.");
-            return name;
-        }
+        if (modules == null) return name;
         for (Module module : modules.getAll()) {
             if (module.name.equals(name)) {
                 dupe++;

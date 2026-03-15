@@ -62,8 +62,7 @@ public class AutoGrind extends Module {
                 if (canGrind(mc.player.getInventory().getStack(i))) {
                     try {
                         Thread.sleep(delay.get());
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                    } catch (InterruptedException ignored) {
                     }
 
                     if (mc.currentScreen == null) break;

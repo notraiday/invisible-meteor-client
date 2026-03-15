@@ -14,6 +14,7 @@ import meteordevelopment.meteorclient.systems.hud.HudGroup;
 import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.item.Items;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,8 +26,6 @@ public class MeteorRejectsAddon extends MeteorAddon {
 
     @Override
     public void onInitialize() {
-        LOG.info("Initializing Meteor Rejects Addon");
-
         // Modules
         Modules modules = Modules.get();
         modules.add(new AimAssist());
@@ -72,6 +71,8 @@ public class MeteorRejectsAddon extends MeteorAddon {
         modules.add(new NewChunks());
         modules.add(new NoJumpDelay());
         modules.add(new ObsidianFarm());
+        // Present in upstream but not in this embedded tree:
+        // modules.add(new OreSim());
         modules.add(new PacketFly());
         modules.add(new Painter());
         modules.add(new Rendering());
@@ -92,10 +93,14 @@ public class MeteorRejectsAddon extends MeteorAddon {
         Commands.add(new GiveCommand());
         Commands.add(new HeadsCommand());
         Commands.add(new KickCommand());
+        // Present in upstream but not in this embedded tree:
+        // Commands.add(new LocateCommand());
         Commands.add(new PanicCommand());
         Commands.add(new ReconnectCommand());
         Commands.add(new ServerCommand());
         Commands.add(new SaveSkinCommand());
+        // Present in upstream but not in this embedded tree:
+        // Commands.add(new SeedCommand());
         Commands.add(new SetBlockCommand());
         Commands.add(new SetVelocityCommand());
         Commands.add(new TeleportCommand());
@@ -126,13 +131,12 @@ public class MeteorRejectsAddon extends MeteorAddon {
 
     @Override
     public String getCommit() {
-        String commit = FabricLoader
-                .getInstance()
-                .getModContainer("meteor-rejects")
-                .get().getMetadata()
-                .getCustomValue("github:sha")
-                .getAsString();
-        LOG.info("Rejects version: {}", commit);
+        // When this addon is embedded/baked into another client, "meteor-rejects"
+        // may not exist as a standalone mod container.
+        ModContainer container = FabricLoader.getInstance().getModContainer("meteor-rejects").orElse(null);
+        if (container == null) return null;
+
+        String commit = container.getMetadata().getCustomValue("github:sha").getAsString();
         return commit.isEmpty() ? null : commit.trim();
     }
 

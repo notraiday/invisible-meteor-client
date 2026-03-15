@@ -1,6 +1,5 @@
 package anticope.rejects.gui.servers;
 
-import anticope.rejects.MeteorRejectsAddon;
 import anticope.rejects.mixin.MultiplayerScreenAccessor;
 import anticope.rejects.mixin.ServerListAccessor;
 import anticope.rejects.utils.server.IPAddress;
@@ -77,8 +76,7 @@ public class ServerManagerScreen extends WindowScreen {
                         if (parsedIP != null)
                             hashedIPs.add(parsedIP);
                     }
-                } catch (IOException e) {
-                    e.printStackTrace();
+                } catch (IOException ignored) {
                 }
             }
 
@@ -99,14 +97,12 @@ public class ServerManagerScreen extends WindowScreen {
 
             try {
                 Files.writeString(filePath, fileOutput.toString());
-            } catch (IOException e) {
-                e.printStackTrace();
+            } catch (IOException ignored) {
             }
 
             toast("Success!", newIPs == 1 ? "Saved %s new IP" : "Saved %s new IPs", newIPs);
         }, e -> {
-            MeteorRejectsAddon.LOG.error("Could not save IPs");
-            toast("Something went wrong", "The IPs could not be saved, look at the log for details");
+            toast("Something went wrong", "The IPs could not be saved");
         });
         l.add(theme.button("Load IPs")).expandX().widget().action = tryHandle(() -> {
             String targetPath = TinyFileDialogs.tinyfd_openFileDialog("Load IPs", null, saveFileFilters, "", false);
@@ -129,8 +125,7 @@ public class ServerManagerScreen extends WindowScreen {
             ((MultiplayerScreenAccessor) multiplayerScreen).getServerListWidget().setServers(multiplayerScreen.getServerList());
             toast("Success!", newIPs == 1 ? "Loaded %s new IP" : "Loaded %s new IPs", newIPs);
         }, e -> {
-            MeteorRejectsAddon.LOG.error("Could not load IPs");
-            toast("Something went wrong", "The IPs could not be loaded, look at the log for details");
+            toast("Something went wrong", "The IPs could not be loaded");
         });
     }
 

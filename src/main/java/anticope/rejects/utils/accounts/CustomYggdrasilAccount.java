@@ -1,6 +1,5 @@
 package anticope.rejects.utils.accounts;
 
-import anticope.rejects.MeteorRejectsAddon;
 import com.mojang.authlib.exceptions.AuthenticationException;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
 import meteordevelopment.meteorclient.mixin.MinecraftClientAccessor;
@@ -48,9 +47,6 @@ public class CustomYggdrasilAccount extends Account<CustomYggdrasilAccount> {
             cache.loadHead();
             return true;
         } catch (AuthenticationException e) {
-            if (e.getMessage().contains("Invalid username or password") || e.getMessage().contains("account migrated"))
-                MeteorRejectsAddon.LOG.error("Wrong password.");
-            else MeteorRejectsAddon.LOG.error("Failed to contact the authentication server.");
             return false;
         }
     }
