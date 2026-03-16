@@ -24,6 +24,7 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import org.joml.Vector3d;
@@ -40,6 +41,21 @@ public class ESP extends Module {
         .name("mode")
         .description("Rendering mode.")
         .defaultValue(Mode.Shader)
+        .build()
+    );
+
+    public final Setting<Boolean> highlightTarget = sgGeneral.add(new BoolSetting.Builder()
+        .name("highlight-target")
+        .description("highlights the currently targeted entity differently")
+        .defaultValue(false)
+        .build()
+    );
+
+    public final Setting<Boolean> targetHitbox = sgGeneral.add(new BoolSetting.Builder()
+        .name("target-hitbox")
+        .description("draw the hitbox of the target entity")
+        .defaultValue(true)
+        .visible(highlightTarget::get)
         .build()
     );
 
@@ -107,18 +123,26 @@ public class ESP extends Module {
 
     // Colors
 
-    public final Setting<Boolean> distance = sgColors.add(new BoolSetting.Builder()
-        .name("distance-colors")
-        .description("Changes the color of tracers depending on distance.")
-        .defaultValue(false)
+    public final Setting<ESPColorMode> colorMode = sgColors.add(new EnumSetting.Builder<ESPColorMode>()
+        .name("color-mode")
+        .description("Determines the colors used for entities.")
+        .defaultValue(ESPColorMode.EntityType)
         .build()
     );
 
     public final Setting<Boolean> friendOverride = sgColors.add(new BoolSetting.Builder()
         .name("show-friend-colors")
-        .description("Whether or not to override the distance color of friends with the friend color.")
+        .description("Whether or not to override the distance/health color of friends with the friend color.")
         .defaultValue(true)
-        .visible(distance::get)
+        .visible(() -> colorMode.get() == ESPColorMode.Distance || colorMode.get() == ESPColorMode.Health)
+        .build()
+    );
+
+    private final Setting<SettingColor> nonLivingEntityColor = sgColors.add(new ColorSetting.Builder()
+        .name("non-living-entity-color")
+        .description("The color used for non living entities such as dropped items.")
+        .defaultValue(new SettingColor(25, 25, 25))
+        .visible(() -> colorMode.get() == ESPColorMode.Health)
         .build()
     );
 
@@ -126,7 +150,7 @@ public class ESP extends Module {
         .name("players-color")
         .description("The other player's color.")
         .defaultValue(new SettingColor(255, 255, 255))
-        .visible(() -> !distance.get())
+        .visible(() -> colorMode.get() == ESPColorMode.EntityType)
         .build()
     );
 
@@ -134,7 +158,7 @@ public class ESP extends Module {
         .name("animals-color")
         .description("The animal's color.")
         .defaultValue(new SettingColor(25, 255, 25, 255))
-        .visible(() -> !distance.get())
+        .visible(() -> colorMode.get() == ESPColorMode.EntityType)
         .build()
     );
 
@@ -142,7 +166,7 @@ public class ESP extends Module {
         .name("water-animals-color")
         .description("The water animal's color.")
         .defaultValue(new SettingColor(25, 25, 255, 255))
-        .visible(() -> !distance.get())
+        .visible(() -> colorMode.get() == ESPColorMode.EntityType)
         .build()
     );
 
@@ -150,7 +174,7 @@ public class ESP extends Module {
         .name("monsters-color")
         .description("The monster's color.")
         .defaultValue(new SettingColor(255, 25, 25, 255))
-        .visible(() -> !distance.get())
+        .visible(() -> colorMode.get() == ESPColorMode.EntityType)
         .build()
     );
 
@@ -158,7 +182,7 @@ public class ESP extends Module {
         .name("ambient-color")
         .description("The ambient's color.")
         .defaultValue(new SettingColor(25, 25, 25, 255))
-        .visible(() -> !distance.get())
+        .visible(() -> colorMode.get() == ESPColorMode.EntityType)
         .build()
     );
 
@@ -166,7 +190,23 @@ public class ESP extends Module {
         .name("misc-color")
         .description("The misc color.")
         .defaultValue(new SettingColor(175, 175, 175, 255))
-        .visible(() -> !distance.get())
+        .visible(() -> colorMode.get() == ESPColorMode.EntityType)
+        .build()
+    );
+
+    private final Setting<SettingColor> targetColor = sgColors.add(new ColorSetting.Builder()
+        .name("target-color")
+        .description("The target color.")
+        .defaultValue(new SettingColor(200, 200, 200, 255))
+        .visible(highlightTarget::get)
+        .build()
+    );
+
+    private final Setting<SettingColor> targetHitboxColor = sgColors.add(new ColorSetting.Builder()
+        .name("target-hitbox-color")
+        .description("The target hitbox color.")
+        .defaultValue(new SettingColor(100, 200, 200, 255))
+        .visible(() -> highlightTarget.get() && targetHitbox.get())
         .build()
     );
 
@@ -192,10 +232,12 @@ public class ESP extends Module {
 
         count = 0;
 
-        for (Entity entity : mc.world.getEntities()) {
-            if (shouldSkip(entity)) continue;
+        Entity target = null;
+        if (highlightTarget.get() && targetHitbox.get() && mc.crosshairTarget instanceof EntityHitResult hr) target = hr.getEntity();
 
-            if (mode.get() == Mode.Box || mode.get() == Mode.Wireframe) drawBoundingBox(event, entity);
+        for (Entity entity : mc.world.getEntities()) {
+            if (target != entity && shouldSkip(entity)) continue;
+            if (target == entity || mode.get() == Mode.Box || mode.get() == Mode.Wireframe) drawBoundingBox(event, entity);
             count++;
         }
     }
@@ -207,15 +249,23 @@ public class ESP extends Module {
             sideColor.set(color).a((int) (sideColor.a * fillOpacity.get()));
         }
 
-        if (mode.get() == Mode.Box) {
+        if (mode.get() == Mode.Wireframe) {
+            WireframeEntityRenderer.render(event, entity, 1, sideColor, lineColor, shapeMode.get());
+        }
+
+        boolean target = drawAsTarget(entity);
+
+        if (mode.get() == Mode.Box || (targetHitbox.get() && target)) {
             double x = MathHelper.lerp(event.tickDelta, entity.lastRenderX, entity.getX()) - entity.getX();
             double y = MathHelper.lerp(event.tickDelta, entity.lastRenderY, entity.getY()) - entity.getY();
             double z = MathHelper.lerp(event.tickDelta, entity.lastRenderZ, entity.getZ()) - entity.getZ();
 
+            ShapeMode shape = shapeMode.get();
+            if (target && mode.get() != Mode.Box) shape = ShapeMode.Lines;
+            if (target) lineColor.set(targetHitboxColor.get());
+
             Box box = entity.getBoundingBox();
-            event.renderer.box(x + box.minX, y + box.minY, z + box.minZ, x + box.maxX, y + box.maxY, z + box.maxZ, sideColor, lineColor, shapeMode.get(), 0);
-        } else {
-            WireframeEntityRenderer.render(event, entity, 1, sideColor, lineColor, shapeMode.get());
+            event.renderer.box(x + box.minX, y + box.minY, z + box.minZ, x + box.maxX, y + box.maxY, z + box.maxZ, sideColor, lineColor, shape, 0);
         }
     }
 
@@ -275,7 +325,11 @@ public class ESP extends Module {
             count++;
         }
 
-        Renderer2D.COLOR.render(null);
+        Renderer2D.COLOR.render();
+    }
+
+    public boolean forceRender() {
+        return isActive() && (mode.get() == Mode.Shader || mode.get() == Mode.Glow);
     }
 
     private boolean checkCorner(double x, double y, double z, Vector3d min, Vector3d max) {
@@ -297,25 +351,42 @@ public class ESP extends Module {
 
     // Utils
 
+    public boolean drawAsTarget(Entity entity) {
+        return highlightTarget.get() && mc.crosshairTarget instanceof EntityHitResult hr && hr.getEntity() == entity;
+    }
+
     public boolean shouldSkip(Entity entity) {
+        if (drawAsTarget(entity)) return false;
         if (!entities.get().contains(entity.getType())) return true;
         if (entity == mc.player && ignoreSelf.get()) return true;
-        if (entity == mc.cameraEntity && mc.options.getPerspective().isFirstPerson()) return true;
+        if (entity == mc.getCameraEntity() && mc.options.getPerspective().isFirstPerson()) return true;
         return !EntityUtils.isInRenderDistance(entity);
     }
 
+    public boolean shouldSkip(EntityType<?> entityType) {
+        return !entities.get().contains(entityType);
+    }
+
     public Color getColor(Entity entity) {
-        if (!entities.get().contains(entity.getType())) return null;
+        Color color;
+        double alpha = 1;
 
-        double alpha = getFadeAlpha(entity);
-        if (alpha == 0) return null;
+        if (drawAsTarget(entity)) {
+            color = targetColor.get();
+        } else {
+            if (!entities.get().contains(entity.getType())) return null;
 
-        Color color = getEntityTypeColor(entity);
+            alpha = getFadeAlpha(entity);
+            if (alpha == 0) return null;
+
+            color = getEntityTypeColor(entity);
+        }
+
         return baseColor.set(color.r, color.g, color.b, (int) (color.a * alpha));
     }
 
     private double getFadeAlpha(Entity entity) {
-        double dist = PlayerUtils.squaredDistanceToCamera(entity.getX() + entity.getWidth() / 2, entity.getY() + entity.getEyeHeight(entity.getPose()), entity.getZ() + entity.getWidth() / 2);
+        double dist = PlayerUtils.squaredDistanceToCamera(entity.getX(), entity.getY() + entity.getEyeHeight(entity.getPose()), entity.getZ());
         double fadeDist = Math.pow(fadeDistance.get(), 2);
         double alpha = 1;
         if (dist <= fadeDist * fadeDist) alpha = (float) (Math.sqrt(dist) / fadeDist);
@@ -324,21 +395,27 @@ public class ESP extends Module {
     }
 
     public Color getEntityTypeColor(Entity entity) {
-        if (distance.get()) {
-            if (friendOverride.get() && entity instanceof PlayerEntity && Friends.get().isFriend((PlayerEntity) entity)) {
-                return Config.get().friendColor.get();
-            } else return EntityUtils.getColorFromDistance(entity);
-        } else if (entity instanceof PlayerEntity) {
-            return PlayerUtils.getPlayerColor(((PlayerEntity) entity), playersColor.get());
-        } else {
-            return switch (entity.getType().getSpawnGroup()) {
-                case CREATURE -> animalsColor.get();
-                case WATER_AMBIENT, WATER_CREATURE, UNDERGROUND_WATER_CREATURE, AXOLOTLS -> waterAnimalsColor.get();
-                case MONSTER -> monstersColor.get();
-                case AMBIENT -> ambientColor.get();
-                default -> miscColor.get();
-            };
+        if (colorMode.get() == ESPColorMode.EntityType) {
+            if (entity instanceof PlayerEntity player) {
+                return PlayerUtils.getPlayerColor(player, playersColor.get());
+            } else {
+                return switch (entity.getType().getSpawnGroup()) {
+                    case CREATURE -> animalsColor.get();
+                    case WATER_AMBIENT, WATER_CREATURE, UNDERGROUND_WATER_CREATURE, AXOLOTLS -> waterAnimalsColor.get();
+                    case MONSTER -> monstersColor.get();
+                    case AMBIENT -> ambientColor.get();
+                    default -> miscColor.get();
+                };
+            }
         }
+
+        if (friendOverride.get() && entity instanceof PlayerEntity player
+            && Friends.get().isFriend(player)) {
+            return Config.get().friendColor.get();
+        }
+
+        if (colorMode.get() == ESPColorMode.Health) return EntityUtils.getColorFromHealth(entity, nonLivingEntityColor.get());
+        else return EntityUtils.getColorFromDistance(entity);
     }
 
     @Override
@@ -352,6 +429,17 @@ public class ESP extends Module {
 
     public boolean isGlow() {
         return isActive() && mode.get() == Mode.Glow;
+    }
+
+    public enum ESPColorMode {
+        EntityType,
+        Distance,
+        Health;
+
+        @Override
+        public String toString() {
+            return this == EntityType ? "Entity Type" : super.toString();
+        }
     }
 
     public enum Mode {

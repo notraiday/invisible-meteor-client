@@ -5,6 +5,7 @@
 
 package meteordevelopment.meteorclient.utils.render;
 
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.render.Render3DEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
@@ -13,25 +14,25 @@ import meteordevelopment.meteorclient.utils.PostInit;
 import meteordevelopment.meteorclient.utils.misc.Pool;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.orbit.EventHandler;
+import net.irisshaders.iris.api.v0.IrisApi;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix3x2fStack;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 public class RenderUtils {
     public static Vec3d center;
+    public static final Matrix4f projection = new Matrix4f();
 
     private static final Pool<RenderBlock> renderBlockPool = new Pool<>(RenderBlock::new);
-    private static final List<RenderBlock> renderBlocks = new ArrayList<>();
+    private static final List<RenderBlock> renderBlocks = new ObjectArrayList<>();
 
     private RenderUtils() {
     }
@@ -41,12 +42,20 @@ public class RenderUtils {
         MeteorClient.EVENT_BUS.subscribe(RenderUtils.class);
     }
 
+    public static boolean isShaderPackInUse() {
+        return IrisApi.getInstance().isShaderPackInUse();
+    }
+
     // Items
-    public static void drawItem(DrawContext drawContext, ItemStack itemStack, int x, int y, float scale, boolean overlay, String countOverride) {
-        MatrixStack matrices = drawContext.getMatrices();
-        matrices.push();
-        matrices.scale(scale, scale, 1f);
-        matrices.translate(0, 0, 401); // Thanks Mojang
+    public static void drawItem(DrawContext drawContext, ItemStack itemStack, int x, int y, float scale, boolean overlay, String countOverride, boolean disableGuiScale) {
+        Matrix3x2fStack matrices = drawContext.getMatrices();
+        matrices.pushMatrix();
+
+        if (disableGuiScale) {
+            matrices.scale(1.0f / mc.getWindow().getScaleFactor());
+        }
+
+        matrices.scale(scale, scale);
 
         int scaledX = (int) (x / scale);
         int scaledY = (int) (y / scale);
@@ -54,34 +63,36 @@ public class RenderUtils {
         drawContext.drawItem(itemStack, scaledX, scaledY);
         if (overlay) drawContext.drawStackOverlay(mc.textRenderer, itemStack, scaledX, scaledY, countOverride);
 
-        matrices.pop();
+        matrices.popMatrix();
     }
 
     public static void drawItem(DrawContext drawContext, ItemStack itemStack, int x, int y, float scale, boolean overlay) {
-        drawItem(drawContext, itemStack, x, y, scale, overlay, null);
+        drawItem(drawContext, itemStack, x, y, scale, overlay, null, true);
     }
 
     public static void updateScreenCenter(Matrix4f projection, Matrix4f view) {
+        RenderUtils.projection.set(projection);
+
         Matrix4f invProjection = new Matrix4f(projection).invert();
         Matrix4f invView = new Matrix4f(view).invert();
 
         Vector4f center4 = new Vector4f(0, 0, 0, 1).mul(invProjection).mul(invView);
         center4.div(center4.w);
 
-        Vec3d camera = mc.gameRenderer.getCamera().getPos();
+        Vec3d camera = mc.gameRenderer.getCamera().getCameraPos();
         center = new Vec3d(camera.x + center4.x, camera.y + center4.y, camera.z + center4.z);
     }
 
     public static void renderTickingBlock(BlockPos blockPos, Color sideColor, Color lineColor, ShapeMode shapeMode, int excludeDir, int duration, boolean fade, boolean shrink) {
         // Ensure there aren't multiple fading blocks in one pos
-        Iterator<RenderBlock> iterator = renderBlocks.iterator();
-        while (iterator.hasNext()) {
-            RenderBlock next = iterator.next();
+        renderBlocks.removeIf(next -> {
             if (next.pos.equals(blockPos)) {
-                iterator.remove();
                 renderBlockPool.free(next);
+                return true;
+            } else {
+                return false;
             }
-        }
+        });
 
         renderBlocks.add(renderBlockPool.get().set(blockPos, sideColor, lineColor, shapeMode, excludeDir, duration, fade, shrink));
     }
@@ -90,16 +101,16 @@ public class RenderUtils {
     private static void onTick(TickEvent.Pre event) {
         if (renderBlocks.isEmpty()) return;
 
-        renderBlocks.forEach(RenderBlock::tick);
+        renderBlocks.removeIf(next -> {
+            next.tick();
 
-        Iterator<RenderBlock> iterator = renderBlocks.iterator();
-        while (iterator.hasNext()) {
-            RenderBlock next = iterator.next();
             if (next.ticks <= 0) {
-                iterator.remove();
                 renderBlockPool.free(next);
+                return true;
+            } else {
+                return false;
             }
-        }
+        });
     }
 
     @EventHandler
@@ -159,4 +170,3 @@ public class RenderUtils {
         }
     }
 }
-

@@ -196,6 +196,13 @@ public class NoRender extends Module {
         .build()
     );
 
+    private final Setting<Boolean> noWorldBorder = sgWorld.add(new BoolSetting.Builder()
+        .name("world-border")
+        .description("Disables rendering of the world border.")
+        .defaultValue(false)
+        .build()
+    );
+
     private final Setting<Boolean> noBlindness = sgWorld.add(new BoolSetting.Builder()
         .name("blindness")
         .description("Disables rendering of blindness.")
@@ -241,13 +248,6 @@ public class NoRender extends Module {
     private final Setting<Boolean> noBlockBreakOverlay = sgWorld.add(new BoolSetting.Builder()
         .name("block-break-overlay")
         .description("Disables rendering of block-break overlay.")
-        .defaultValue(false)
-        .build()
-    );
-
-    private final Setting<Boolean> noSkylightUpdates = sgWorld.add(new BoolSetting.Builder()
-        .name("skylight-updates")
-        .description("Disables rendering of skylight updates.")
         .defaultValue(false)
         .build()
     );
@@ -520,6 +520,10 @@ public class NoRender extends Module {
         return isActive() && noWeather.get();
     }
 
+    public boolean noWorldBorder() {
+        return isActive() && noWorldBorder.get();
+    }
+
     public boolean noBlindness() {
         return isActive() && noBlindness.get();
     }
@@ -546,10 +550,6 @@ public class NoRender extends Module {
 
     public boolean noBlockBreakOverlay() {
         return isActive() && noBlockBreakOverlay.get();
-    }
-
-    public boolean noSkylightUpdates() {
-        return isActive() && noSkylightUpdates.get();
     }
 
     public boolean noBeaconBeams() {
@@ -599,7 +599,7 @@ public class NoRender extends Module {
 
     @EventHandler
     private void onRenderBlockEntity(RenderBlockEntityEvent event) {
-        if (blockEntities.get().contains(event.blockEntity.getCachedState().getBlock())) event.cancel();
+        if (blockEntities.get().contains(event.blockEntityState.blockState.getBlock())) event.cancel();
     }
 
     // Entity

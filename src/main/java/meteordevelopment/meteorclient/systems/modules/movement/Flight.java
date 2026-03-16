@@ -13,10 +13,10 @@ import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
+import meteordevelopment.meteorclient.utils.entity.EntityUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.AbstractBlock;
-import net.minecraft.entity.Entity;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.network.packet.s2c.play.PlayerAbilitiesS2CPacket;
 import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.util.math.Vec3d;
 
@@ -77,7 +77,7 @@ public class Flight extends Module {
     // Anti Kick
     private final Setting<Integer> offTime = sgAntiKick.add(new IntSetting.Builder()
         .name("off-time")
-        .description("The amount of delay, in milliseconds, to fly down a bit to reset floating ticks.")
+        .description("The amount of delay, in ticks, to fly down a bit to reset floating ticks.")
         .defaultValue(1)
         .min(1)
         .sliderRange(1, 20)
@@ -130,7 +130,7 @@ public class Flight extends Module {
 
             if (antiKickMode.get() == AntiKickMode.Packet) {
                 // Resend movement packets
-                ((ClientPlayerEntityAccessor) mc.player).setTicksSinceLastPositionPacketSent(20);
+                ((ClientPlayerEntityAccessor) mc.player).meteor$setTicksSinceLastPositionPacketSent(20);
             }
         } else if (delayLeft <= 0) {
             boolean shouldReturn = false;
@@ -142,7 +142,7 @@ public class Flight extends Module {
                 }
             } else if (antiKickMode.get() == AntiKickMode.Packet && offLeft == offTime.get()) {
                 // Resend movement packets
-                ((ClientPlayerEntityAccessor) mc.player).setTicksSinceLastPositionPacketSent(20);
+                ((ClientPlayerEntityAccessor) mc.player).meteor$setTicksSinceLastPositionPacketSent(20);
             }
 
             offLeft--;
@@ -179,10 +179,10 @@ public class Flight extends Module {
     private void antiKickPacket(PlayerMoveC2SPacket packet, double currentY) {
         // maximum time we can be "floating" is 80 ticks, so 4 seconds max
         if (this.delayLeft <= 0 && this.lastPacketY != Double.MAX_VALUE &&
-            shouldFlyDown(currentY, this.lastPacketY) && isEntityOnAir(mc.player)) {
+            shouldFlyDown(currentY, this.lastPacketY) && EntityUtils.isOnAir(mc.player)) {
             // actual check is for >= -0.03125D, but we have to do a bit more than that
             // due to the fact that it's a bigger or *equal* to, and not just a bigger than
-            ((PlayerMoveC2SPacketAccessor) packet).setY(lastPacketY - 0.03130D);
+            ((PlayerMoveC2SPacketAccessor) packet).meteor$setY(lastPacketY - 0.03130D);
         } else {
             lastPacketY = currentY;
         }
@@ -227,6 +227,16 @@ public class Flight extends Module {
         }
     }
 
+    @EventHandler
+    private void onReceivePacket(PacketEvent.Receive event) {
+        if (!(event.packet instanceof PlayerAbilitiesS2CPacket packet) || mode.get() != Mode.Abilities) return;
+        event.cancel(); // Cancel packet, so fly won't be toggled
+
+        mc.player.getAbilities().invulnerable = packet.isInvulnerable();
+        mc.player.getAbilities().creativeMode = packet.isCreativeMode();
+        mc.player.getAbilities().setWalkSpeed(packet.getWalkSpeed());
+    }
+
     private boolean shouldFlyDown(double currentY, double lastY) {
         if (currentY >= lastY) {
             return true;
@@ -238,11 +248,6 @@ public class Flight extends Module {
         mc.player.getAbilities().setFlySpeed(0.05f);
         if (mc.player.getAbilities().creativeMode) return;
         mc.player.getAbilities().allowFlying = false;
-    }
-
-    // Copied from ServerPlayNetworkHandler#isEntityOnAir
-    private boolean isEntityOnAir(Entity entity) {
-        return entity.getWorld().getStatesInBox(entity.getBoundingBox().expand(0.0625).stretch(0.0, -0.55, 0.0)).allMatch(AbstractBlock.AbstractBlockState::isAir);
     }
 
     public float getOffGroundSpeed() {

@@ -7,6 +7,8 @@ package meteordevelopment.meteorclient.systems.modules.movement;
 
 import meteordevelopment.meteorclient.events.entity.player.PlayerMoveEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.mixin.AbstractBlockAccessor;
+import meteordevelopment.meteorclient.mixin.DirectionAccessor;
 import meteordevelopment.meteorclient.mixininterface.IVec3d;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.friends.Friends;
@@ -91,9 +93,9 @@ public class AutoWasp extends Module {
     public void onActivate() {
         if (target == null || target.isRemoved()) {
             target = (PlayerEntity) TargetUtils.get(entity -> {
-                if (!(entity instanceof PlayerEntity) || entity == mc.player) return false;
-                if (((PlayerEntity) entity).isDead() || ((PlayerEntity) entity).getHealth() <= 0) return false;
-                return !onlyFriends.get() || Friends.get().get((PlayerEntity) entity) != null;
+                if (!(entity instanceof PlayerEntity player) || entity == mc.player) return false;
+                if (player.isDead() || player.getHealth() <= 0) return false;
+                return !onlyFriends.get() || Friends.get().get(player) != null;
             }, SortPriority.LowestDistance);
 
             if (target == null) {
@@ -160,7 +162,7 @@ public class AutoWasp extends Module {
 
         double xVel = 0, yVel = 0, zVel = 0;
 
-        Vec3d targetPos = target.getPos().add(offset.get().x, offset.get().y, offset.get().z);
+        Vec3d targetPos = target.getEntityPos().add(offset.get().x, offset.get().y, offset.get().z);
 
         if (predictMovement.get()) targetPos.add(PlayerEntity.adjustMovementForCollisions(target, target.getVelocity(),
             target.getBoundingBox(), mc.world, mc.world.getEntityCollisions(target, target.getBoundingBox().stretch(target.getVelocity()))));
@@ -169,9 +171,9 @@ public class AutoWasp extends Module {
             double d = target.getBoundingBox().getLengthX() / 2; // x length = z length for players
 
             //get the block pos of the block underneath the corner of the targets bounding box
-            for (Direction dir : Direction.HORIZONTAL) {
+            for (Direction dir : DirectionAccessor.meteor$getHorizontal()) {
                 BlockPos pos = BlockPos.ofFloored(targetPos.offset(dir, d).offset(dir.rotateYClockwise(), d)).down();
-                if (mc.world.getBlockState(pos).getBlock().collidable && Math.abs(targetPos.getY() - (pos.getY() + 1)) <= 0.25) {
+                if (((AbstractBlockAccessor) mc.world.getBlockState(pos).getBlock()).meteor$isCollidable() && Math.abs(targetPos.getY() - (pos.getY() + 1)) <= 0.25) {
                     targetPos = new Vec3d(targetPos.x, pos.getY() + 1.25, targetPos.z);
                     break;
                 }

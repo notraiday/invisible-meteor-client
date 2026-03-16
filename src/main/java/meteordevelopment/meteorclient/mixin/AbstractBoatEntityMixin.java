@@ -5,42 +5,25 @@
 
 package meteordevelopment.meteorclient.mixin;
 
-import meteordevelopment.meteorclient.MeteorClient;
-import meteordevelopment.meteorclient.events.entity.BoatMoveEvent;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import meteordevelopment.meteorclient.systems.modules.Modules;
-import meteordevelopment.meteorclient.systems.modules.movement.BoatFly;
+import meteordevelopment.meteorclient.systems.modules.movement.EntityControl;
 import net.minecraft.entity.vehicle.AbstractBoatEntity;
+import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(AbstractBoatEntity.class)
 public abstract class AbstractBoatEntityMixin {
-    @Shadow
-    private boolean pressingLeft;
-
-    @Shadow
-    private boolean pressingRight;
-
-    @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/vehicle/AbstractBoatEntity;move(Lnet/minecraft/entity/MovementType;Lnet/minecraft/util/math/Vec3d;)V"))
-    private void onTickInvokeMove(CallbackInfo info) {
-        if ((Object) this instanceof AbstractBoatEntity boatEntity) {
-            MeteorClient.EVENT_BUS.post(BoatMoveEvent.get(boatEntity));
-        }
+    @ModifyExpressionValue(method = "updatePaddles", at = @At(value = "FIELD", target = "Lnet/minecraft/entity/vehicle/AbstractBoatEntity;pressingLeft:Z", opcode = Opcodes.GETFIELD))
+    private boolean modifyPressingLeft(boolean original) {
+        if (Modules.get().isActive(EntityControl.class) && Modules.get().get(EntityControl.class).lockYaw.get()) return false;
+        return original;
     }
 
-    @Redirect(method = "updatePaddles", at = @At(value = "FIELD", target = "Lnet/minecraft/entity/vehicle/AbstractBoatEntity;pressingLeft:Z"))
-    private boolean onUpdatePaddlesPressingLeft(AbstractBoatEntity instance) {
-        if (Modules.get().isActive(BoatFly.class)) return false;
-        return pressingLeft;
-    }
-
-    @Redirect(method = "updatePaddles", at = @At(value = "FIELD", target = "Lnet/minecraft/entity/vehicle/AbstractBoatEntity;pressingRight:Z"))
-    private boolean onUpdatePaddlesPressingRight(AbstractBoatEntity instance) {
-        if (Modules.get().isActive(BoatFly.class)) return false;
-        return pressingRight;
+    @ModifyExpressionValue(method = "updatePaddles", at = @At(value = "FIELD", target = "Lnet/minecraft/entity/vehicle/AbstractBoatEntity;pressingRight:Z", opcode = Opcodes.GETFIELD))
+    private boolean modifyPressingRight(boolean original) {
+        if (Modules.get().isActive(EntityControl.class) && Modules.get().get(EntityControl.class).lockYaw.get()) return false;
+        return original;
     }
 }

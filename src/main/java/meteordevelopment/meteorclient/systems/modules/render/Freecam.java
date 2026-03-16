@@ -6,15 +6,15 @@
 package meteordevelopment.meteorclient.systems.modules.render;
 
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import meteordevelopment.meteorclient.events.game.GameLeftEvent;
 import meteordevelopment.meteorclient.events.game.OpenScreenEvent;
 import meteordevelopment.meteorclient.events.meteor.KeyEvent;
-import meteordevelopment.meteorclient.events.meteor.MouseButtonEvent;
+import meteordevelopment.meteorclient.events.meteor.MouseClickEvent;
 import meteordevelopment.meteorclient.events.meteor.MouseScrollEvent;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.ChunkOcclusionEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.pathing.PathManagers;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
 import meteordevelopment.meteorclient.settings.Setting;
@@ -29,20 +29,29 @@ import meteordevelopment.meteorclient.utils.misc.input.KeyAction;
 import meteordevelopment.meteorclient.utils.player.Rotations;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
+import net.minecraft.block.ShapeContext;
 import net.minecraft.client.option.Perspective;
+import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.projectile.ProjectileUtil;
 import net.minecraft.network.packet.s2c.play.DeathMessageS2CPacket;
 import net.minecraft.network.packet.s2c.play.HealthUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3d;
 import org.lwjgl.glfw.GLFW;
 
 public class Freecam extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
+    private final SettingGroup sgPathing = settings.createGroup("Pathing");
 
     private final Setting<Double> speed = sgGeneral.add(new DoubleSetting.Builder()
         .name("speed")
@@ -59,6 +68,13 @@ public class Freecam extends Module {
         .defaultValue(0)
         .min(0)
         .sliderMax(2)
+        .build()
+    );
+
+    private final Setting<Boolean> staySneaking = sgGeneral.add(new BoolSetting.Builder()
+        .name("stay-sneaking")
+        .description("If you are sneaking when you enter freecam, whether your player should remain sneaking.")
+        .defaultValue(true)
         .build()
     );
 
@@ -111,6 +127,20 @@ public class Freecam extends Module {
         .build()
     );
 
+    private final Setting<Boolean> baritoneClick = sgPathing.add(new BoolSetting.Builder()
+        .name("click-to-path")
+        .description("Sets a pathfinding goal to any block/entity you click at.")
+        .defaultValue(false)
+        .build()
+    );
+
+    private final Setting<Boolean> requireDoubleClick = sgPathing.add(new BoolSetting.Builder()
+        .name("double-click")
+        .description("Require two clicks to start pathing.")
+        .defaultValue(false)
+        .build()
+    );
+
     public final Vector3d pos = new Vector3d();
     public final Vector3d prevPos = new Vector3d();
 
@@ -118,12 +148,14 @@ public class Freecam extends Module {
     private double speedValue;
 
     public float yaw, pitch;
-    public float prevYaw, prevPitch;
+    public float lastYaw, lastPitch;
 
     private double fovScale;
     private boolean bobView;
 
-    private boolean forward, backward, right, left, up, down;
+    private boolean forward, backward, right, left, up, down, isSneaking;
+
+    private long clickTs = 0;
 
     public Freecam() {
         super(Categories.Render, "freecam", "Allows the camera to move away from the player.");
@@ -143,23 +175,25 @@ public class Freecam extends Module {
         perspective = mc.options.getPerspective();
         speedValue = speed.get();
 
-        Utils.set(pos, mc.gameRenderer.getCamera().getPos());
-        Utils.set(prevPos, mc.gameRenderer.getCamera().getPos());
+        Utils.set(pos, mc.gameRenderer.getCamera().getCameraPos());
+        Utils.set(prevPos, mc.gameRenderer.getCamera().getCameraPos());
 
         if (mc.options.getPerspective() == Perspective.THIRD_PERSON_FRONT) {
             yaw += 180;
             pitch *= -1;
         }
 
-        prevYaw = yaw;
-        prevPitch = pitch;
+        lastYaw = yaw;
+        lastPitch = pitch;
 
-        forward = mc.options.forwardKey.isPressed();
-        backward = mc.options.backKey.isPressed();
-        right = mc.options.rightKey.isPressed();
-        left = mc.options.leftKey.isPressed();
-        up = mc.options.jumpKey.isPressed();
-        down = mc.options.sneakKey.isPressed();
+        isSneaking = mc.options.sneakKey.isPressed();
+
+        forward = Input.isPressed(mc.options.forwardKey);
+        backward = Input.isPressed(mc.options.backKey);
+        right = Input.isPressed(mc.options.rightKey);
+        left = Input.isPressed(mc.options.leftKey);
+        up = Input.isPressed(mc.options.jumpKey);
+        down = Input.isPressed(mc.options.sneakKey);
 
         unpress();
         if (reloadChunks.get()) mc.worldRenderer.reload();
@@ -168,14 +202,17 @@ public class Freecam extends Module {
     @Override
     public void onDeactivate() {
         if (reloadChunks.get()) {
-            if (!RenderSystem.isOnRenderThread()) RenderSystem.recordRenderCall(mc.worldRenderer::reload);
-            else mc.worldRenderer.reload();
+            mc.execute(mc.worldRenderer::reload);
         }
+
         mc.options.setPerspective(perspective);
+
         if (staticView.get()) {
             mc.options.getFovEffectScale().setValue(fovScale);
             mc.options.getBobView().setValue(bobView);
         }
+
+        isSneaking = false;
     }
 
     @EventHandler
@@ -183,8 +220,8 @@ public class Freecam extends Module {
         unpress();
 
         prevPos.set(pos);
-        prevYaw = yaw;
-        prevPitch = pitch;
+        lastYaw = yaw;
+        lastPitch = pitch;
     }
 
     private void unpress() {
@@ -198,7 +235,7 @@ public class Freecam extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (mc.cameraEntity.isInsideWall()) mc.getCameraEntity().noClip = true;
+        if (mc.getCameraEntity().isInsideWall()) mc.getCameraEntity().noClip = true;
         if (!perspective.isFirstPerson()) mc.options.setPerspective(Perspective.FIRST_PERSON);
 
         Vec3d forward = Vec3d.fromPolar(0, yaw);
@@ -225,7 +262,7 @@ public class Freecam extends Module {
         }
 
         double s = 0.5;
-        if (mc.options.sprintKey.isPressed()) s = 1;
+        if (Input.isPressed(mc.options.sprintKey)) s = 1;
 
         boolean a = false;
         if (this.forward) {
@@ -268,79 +305,112 @@ public class Freecam extends Module {
         pos.set(pos.x + velX, pos.y + velY, pos.z + velZ);
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGH)
     public void onKey(KeyEvent event) {
         if (Input.isKeyPressed(GLFW.GLFW_KEY_F3)) return;
         if (checkGuiMove()) return;
 
-        boolean cancel = true;
-
-        if (mc.options.forwardKey.matchesKey(event.key, 0)) {
-            forward = event.action != KeyAction.Release;
-            mc.options.forwardKey.setPressed(false);
-        }
-        else if (mc.options.backKey.matchesKey(event.key, 0)) {
-            backward = event.action != KeyAction.Release;
-            mc.options.backKey.setPressed(false);
-        }
-        else if (mc.options.rightKey.matchesKey(event.key, 0)) {
-            right = event.action != KeyAction.Release;
-            mc.options.rightKey.setPressed(false);
-        }
-        else if (mc.options.leftKey.matchesKey(event.key, 0)) {
-            left = event.action != KeyAction.Release;
-            mc.options.leftKey.setPressed(false);
-        }
-        else if (mc.options.jumpKey.matchesKey(event.key, 0)) {
-            up = event.action != KeyAction.Release;
-            mc.options.jumpKey.setPressed(false);
-        }
-        else if (mc.options.sneakKey.matchesKey(event.key, 0)) {
-            down = event.action != KeyAction.Release;
-            mc.options.sneakKey.setPressed(false);
-        }
-        else {
-            cancel = false;
-        }
-
-        if (cancel) event.cancel();
+        if (onInput(event.key(), event.action)) event.cancel();
     }
 
-    @EventHandler
-    private void onMouseButton(MouseButtonEvent event) {
+    @Nullable
+    private BlockPos rayCastEntity(Vec3d posVec, Vec3d max, short maxDist) {
+        EntityHitResult res = ProjectileUtil.raycast(
+            mc.player,
+            posVec,
+            max,
+            Box.enclosing(BlockPos.ofFloored(posVec.x, posVec.y, posVec.z), BlockPos.ofFloored(max.x, max.y, max.z)),
+            (entity) -> true,
+            maxDist
+        );
+
+        if (res == null) return null;
+
+        Vec3d vec = res.getPos();
+
+        return BlockPos.ofFloored(vec.x, vec.y, vec.z);
+    }
+
+    @Nullable
+    private BlockPos rayCastBlock(Vec3d posVec, Vec3d max) {
+        RaycastContext ctx = new RaycastContext(
+            posVec,
+            max,
+            RaycastContext.ShapeType.VISUAL,
+            RaycastContext.FluidHandling.SOURCE_ONLY,
+            ShapeContext.absent()
+        );
+
+        BlockHitResult res = mc.world.raycast(ctx);
+        if (res.getType() == HitResult.Type.MISS) return null;
+
+        // Don't move inside block
+        return res.getBlockPos().add(res.getSide().getVector());
+    }
+
+    private void setGoal() {
+        long prevClick = clickTs;
+        clickTs = System.currentTimeMillis();
+
+        if (requireDoubleClick.get() && clickTs - prevClick > 500) return;
+
+        Camera cam = mc.gameRenderer.getCamera();
+        Vec3d posVec = cam.getCameraPos();
+        Vec3d lookVec = Vec3d.fromPolar(cam.getPitch(), cam.getYaw());
+        short maxDist = 256;
+        Vec3d max = posVec.add(lookVec.multiply(maxDist));
+
+        BlockPos pos = rayCastEntity(posVec, max, maxDist);
+        if (pos == null) {
+            pos = rayCastBlock(posVec, max);
+        }
+
+        if (pos == null) return;
+
+        PathManagers.get().moveTo(pos);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    private void onMouseClick(MouseClickEvent event) {
         if (checkGuiMove()) return;
 
-        boolean cancel = true;
+        if (baritoneClick.get() && event.action == KeyAction.Press && mc.options.attackKey.matchesMouse(event.click)) {
+            setGoal();
+        }
 
-        if (mc.options.forwardKey.matchesMouse(event.button)) {
-            forward = event.action != KeyAction.Release;
+        if (onInput(event.button(), event.action)) event.cancel();
+    }
+
+    private boolean onInput(int key, KeyAction action) {
+        if (Input.getKey(mc.options.forwardKey) == key) {
+            forward = action != KeyAction.Release;
             mc.options.forwardKey.setPressed(false);
         }
-        else if (mc.options.backKey.matchesMouse(event.button)) {
-            backward = event.action != KeyAction.Release;
+        else if (Input.getKey(mc.options.backKey) == key) {
+            backward = action != KeyAction.Release;
             mc.options.backKey.setPressed(false);
         }
-        else if (mc.options.rightKey.matchesMouse(event.button)) {
-            right = event.action != KeyAction.Release;
+        else if (Input.getKey(mc.options.rightKey) == key) {
+            right = action != KeyAction.Release;
             mc.options.rightKey.setPressed(false);
         }
-        else if (mc.options.leftKey.matchesMouse(event.button)) {
-            left = event.action != KeyAction.Release;
+        else if (Input.getKey(mc.options.leftKey) == key) {
+            left = action != KeyAction.Release;
             mc.options.leftKey.setPressed(false);
         }
-        else if (mc.options.jumpKey.matchesMouse(event.button)) {
-            up = event.action != KeyAction.Release;
+        else if (Input.getKey(mc.options.jumpKey) == key) {
+            up = action != KeyAction.Release;
             mc.options.jumpKey.setPressed(false);
         }
-        else if (mc.options.sneakKey.matchesMouse(event.button)) {
-            down = event.action != KeyAction.Release;
+        else if (Input.getKey(mc.options.sneakKey) == key) {
+            down = action != KeyAction.Release;
             mc.options.sneakKey.setPressed(false);
         }
         else {
-            cancel = false;
+            return false;
         }
 
-        if (cancel) event.cancel();
+        return true;
     }
 
     @EventHandler(priority = EventPriority.LOW)
@@ -380,18 +450,23 @@ public class Freecam extends Module {
                 info("Toggled off because you took damage.");
             }
         }
+        else if (event.packet instanceof PlayerRespawnS2CPacket) {
+            if (isActive()) {
+                toggle();
+                info("Toggled off because you changed dimensions.");
+            }
+        }
     }
 
     private boolean checkGuiMove() {
-        // TODO: This is very bad but you all can cope :cope:
         GUIMove guiMove = Modules.get().get(GUIMove.class);
         if (mc.currentScreen != null && !guiMove.isActive()) return true;
         return (mc.currentScreen != null && guiMove.isActive() && guiMove.skip());
     }
 
     public void changeLookDirection(double deltaX, double deltaY) {
-        prevYaw = yaw;
-        prevPitch = pitch;
+        lastYaw = yaw;
+        lastPitch = pitch;
 
         yaw += (float) deltaX;
         pitch += (float) deltaY;
@@ -401,6 +476,10 @@ public class Freecam extends Module {
 
     public boolean renderHands() {
         return !isActive() || renderHands.get();
+    }
+
+    public boolean staySneaking() {
+        return isActive() && !mc.player.getAbilities().flying && staySneaking.get() && isSneaking;
     }
 
     public double getX(float tickDelta) {
@@ -414,9 +493,9 @@ public class Freecam extends Module {
     }
 
     public double getYaw(float tickDelta) {
-        return MathHelper.lerp(tickDelta, prevYaw, yaw);
+        return MathHelper.lerp(tickDelta, lastYaw, yaw);
     }
     public double getPitch(float tickDelta) {
-        return MathHelper.lerp(tickDelta, prevPitch, pitch);
+        return MathHelper.lerp(tickDelta, lastPitch, pitch);
     }
 }

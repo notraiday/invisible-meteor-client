@@ -23,7 +23,7 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -89,7 +89,7 @@ public class ServerSpoof extends Module {
 
             if (blockChannels.get()) {
                 for (String channel : channels.get()) {
-                    if (StringUtils.containsIgnoreCase(id.toString(), channel)) {
+                    if (Strings.CI.contains(id.toString(), channel)) {
                         event.cancel();
                         return;
                     }
@@ -99,8 +99,7 @@ public class ServerSpoof extends Module {
             if (spoofBrand.get() && id.equals(BrandCustomPayload.ID.id())) {
                 CustomPayloadC2SPacket spoofedPacket = new CustomPayloadC2SPacket(new BrandCustomPayload(brand.get()));
 
-                // PacketEvent.Send doesn't trigger if we send the packet like this
-                event.connection.send(spoofedPacket, null, true);
+                event.sendSilently(spoofedPacket);
                 event.cancel();
             }
         }
@@ -126,8 +125,8 @@ public class ServerSpoof extends Module {
         link.setStyle(link.getStyle()
             .withColor(Formatting.BLUE)
             .withUnderline(true)
-            .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, packet.url()))
-            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to open the pack url")))
+            .withClickEvent(new ClickEvent.OpenUrl(URI.create(packet.url())))
+            .withHoverEvent(new HoverEvent.ShowText(Text.literal("Click to open the pack url")))
         );
 
         MutableText acceptance = Text.literal("[Accept Pack]");
@@ -142,7 +141,7 @@ public class ServerSpoof extends Module {
                     mc.getServerResourcePackProvider().addResourcePack(packet.id(), url, packet.hash());
                 }
             }))
-            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Text.literal("Click to accept and apply the pack.")))
+            .withHoverEvent(new HoverEvent.ShowText(Text.literal("Click to accept and apply the pack.")))
         );
 
         msg.append(link).append(" ");

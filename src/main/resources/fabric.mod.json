@@ -21,6 +21,9 @@
   "entrypoints": {
     "client": [
       "meteordevelopment.meteorclient.MeteorClient"
+    ],
+    "modmenu": [
+      "meteordevelopment.meteorclient.modintegration.ModMenuIntegration"
     ]
   },
   "mixins": [
@@ -37,6 +40,12 @@
     "meteor-client:color": "145,61,226",
     "meteor-client:commit": "${commit}",
     "modmenu": {
+      "links": {
+        "modmenu.discord": "https://meteorclient.com/discord"
+      }
+    },
+    "badoptimizations:cache_hooks": {
+      "lightmap": "meteordevelopment.meteorclient.modintegration.BadOptimizationsHook"
     }
   },
   "depends": {
@@ -48,8 +57,8 @@
     "optifabric": "*",
     "feather": "*",
     "origins": "*",
-    "wurst": "*",
-    "sodium": "<0.6.5",
-    "morechathistory": "*"
+    "sodium": "<0.7.0",
+    "morechathistory": "*",
+    "lithium": "<0.21.3"
   }
 }

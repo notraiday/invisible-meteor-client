@@ -7,6 +7,7 @@ package meteordevelopment.meteorclient.utils;
 
 import com.mojang.blaze3d.systems.ProjectionType;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.serialization.DataResult;
 import it.unimi.dsi.fastutil.objects.*;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.world.TickEvent;
@@ -20,6 +21,7 @@ import meteordevelopment.meteorclient.systems.modules.world.Timer;
 import meteordevelopment.meteorclient.utils.misc.Names;
 import meteordevelopment.meteorclient.utils.player.EChestMemory;
 import meteordevelopment.meteorclient.utils.render.PeekScreen;
+import meteordevelopment.meteorclient.utils.render.RenderUtils;
 import meteordevelopment.meteorclient.utils.render.color.Color;
 import meteordevelopment.meteorclient.utils.world.BlockEntityIterator;
 import meteordevelopment.meteorclient.utils.world.ChunkIterator;
@@ -28,22 +30,26 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.ShulkerBoxBlock;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.entity.BlockEntityType;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
+import net.minecraft.client.render.ProjectionMatrix2;
 import net.minecraft.client.resource.ResourceReloadLogger;
 import net.minecraft.component.ComponentMap;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ItemEnchantmentsComponent;
-import net.minecraft.component.type.NbtComponent;
 import net.minecraft.enchantment.Enchantment;
 import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.TypedEntityData;
 import net.minecraft.entity.effect.StatusEffect;
+import net.minecraft.inventory.StackWithSlot;
 import net.minecraft.item.*;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.DyeColor;
@@ -55,17 +61,13 @@ import net.minecraft.world.chunk.Chunk;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jetbrains.annotations.Range;
-import org.joml.Matrix4f;
 import org.joml.Vector3d;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -77,11 +79,12 @@ public class Utils {
     public static final Color WHITE = new Color(255, 255, 255);
 
     private static final Random random = new Random();
-    public static boolean firstTimeTitleScreen = true;
     public static boolean isReleasingTrident;
     public static boolean rendering3D = true;
     public static double frameTime;
     public static Screen screenToOpen;
+
+    private static final ProjectionMatrix2 matrix = new ProjectionMatrix2("meteor-projection-matrix", -10, 100, true);
 
     private Utils() {
     }
@@ -102,9 +105,9 @@ public class Utils {
     public static Vec3d getPlayerSpeed() {
         if (mc.player == null) return Vec3d.ZERO;
 
-        double tX = mc.player.getX() - mc.player.prevX;
-        double tY = mc.player.getY() - mc.player.prevY;
-        double tZ = mc.player.getZ() - mc.player.prevZ;
+        double tX = mc.player.getX() - mc.player.lastX;
+        double tY = mc.player.getY() - mc.player.lastY;
+        double tZ = mc.player.getZ() - mc.player.lastZ;
 
         Timer timer = Modules.get().get(Timer.class);
         if (timer.isActive()) {
@@ -147,7 +150,7 @@ public class Utils {
 
         if (!itemStack.isEmpty()) {
             Set<Object2IntMap.Entry<RegistryEntry<Enchantment>>> itemEnchantments = itemStack.getItem() == Items.ENCHANTED_BOOK
-                ? itemStack.get(DataComponentTypes.STORED_ENCHANTMENTS).getEnchantmentEntries()
+                ? itemStack.getOrDefault(DataComponentTypes.STORED_ENCHANTMENTS, ItemEnchantmentsComponent.DEFAULT).getEnchantmentEntries()
                 : itemStack.getEnchantments().getEnchantmentEntries();
 
             for (Object2IntMap.Entry<RegistryEntry<Enchantment>> entry : itemEnchantments) {
@@ -197,7 +200,7 @@ public class Utils {
     }
 
     public static int getRenderDistance() {
-        return Math.max(mc.options.getViewDistance().getValue(), ((ClientPlayNetworkHandlerAccessor) mc.getNetworkHandler()).getChunkLoadDistance());
+        return Math.max(mc.options.getViewDistance().getValue(), ((ClientPlayNetworkHandlerAccessor) mc.getNetworkHandler()).meteor$getChunkLoadDistance());
     }
 
     public static int getWindowWidth() {
@@ -209,12 +212,22 @@ public class Utils {
     }
 
     public static void unscaledProjection() {
-        RenderSystem.setProjectionMatrix(new Matrix4f().setOrtho(0, mc.getWindow().getFramebufferWidth(), mc.getWindow().getFramebufferHeight(), 0, 1000, 21000), ProjectionType.ORTHOGRAPHIC);
+        float width = mc.getWindow().getFramebufferWidth();
+        float height = mc.getWindow().getFramebufferHeight();
+
+        RenderSystem.setProjectionMatrix(matrix.set(width, height), ProjectionType.ORTHOGRAPHIC);
+        RenderUtils.projection.set(((ProjectionMatrix2Accessor) matrix).meteor$callGetMatrix(width, height));
+
         rendering3D = false;
     }
 
     public static void scaledProjection() {
-        RenderSystem.setProjectionMatrix(new Matrix4f().setOrtho(0, (float) (mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaleFactor()), (float) (mc.getWindow().getFramebufferHeight() / mc.getWindow().getScaleFactor()), 0, 1000, 21000), ProjectionType.PERSPECTIVE);
+        float width = (float) (mc.getWindow().getFramebufferWidth() / mc.getWindow().getScaleFactor());
+        float height = (float) (mc.getWindow().getFramebufferHeight() / mc.getWindow().getScaleFactor());
+
+        RenderSystem.setProjectionMatrix(matrix.set(width, height), ProjectionType.PERSPECTIVE);
+        RenderUtils.projection.set(((ProjectionMatrix2Accessor) matrix).meteor$callGetMatrix(width, height));
+
         rendering3D = true;
     }
 
@@ -247,22 +260,31 @@ public class Utils {
 
         if (components.contains(DataComponentTypes.CONTAINER)) {
             ContainerComponentAccessor container = ((ContainerComponentAccessor) (Object) components.get(DataComponentTypes.CONTAINER));
-            DefaultedList<ItemStack> stacks = container.getStacks();
+            DefaultedList<ItemStack> stacks = container.meteor$getStacks();
 
             for (int i = 0; i < stacks.size(); i++) {
                 if (i >= 0 && i < items.length) items[i] = stacks.get(i);
             }
         }
         else if (components.contains(DataComponentTypes.BLOCK_ENTITY_DATA)) {
-            NbtComponent nbt2 = components.get(DataComponentTypes.BLOCK_ENTITY_DATA);
+            TypedEntityData<BlockEntityType<?>> blockEntityData = components.get(DataComponentTypes.BLOCK_ENTITY_DATA);
+            if (blockEntityData == null) return;
+            NbtList nbt3 = blockEntityData.copyNbtWithoutId().getListOrEmpty("Items");
 
-            if (nbt2.contains("Items")) {
-                NbtList nbt3 = (NbtList) nbt2.getNbt().get("Items");
+            for (int i = 0; i < nbt3.size(); i++) {
+                Optional<NbtCompound> compound = nbt3.getCompound(i);
+                if (compound.isEmpty()) continue;
 
-                for (int i = 0; i < nbt3.size(); i++) {
-                    int slot = nbt3.getCompound(i).getByte("Slot"); // Apparently shulker boxes can store more than 27 items, good job Mojang
-                    // now NPEs when mc.world == null
-                    if (slot >= 0 && slot < items.length) items[slot] = ItemStack.fromNbtOrEmpty(mc.player.getRegistryManager(), nbt3.getCompound(i));
+                Optional<Byte> slot = compound.get().getByte("Slot"); // Apparently shulker boxes can store more than 27 items, good job Mojang
+                if (slot.isEmpty()) continue;
+
+                // now NPEs when mc.world == null
+                if (slot.get() >= 0 && slot.get() < items.length) {
+                    switch (StackWithSlot.CODEC.parse(mc.player.getRegistryManager().getOps(NbtOps.INSTANCE), compound.get())) {
+                        case DataResult.Success<StackWithSlot> success -> items[slot.get()] = success.value().stack();
+                        case DataResult.Error<StackWithSlot> ignored -> items[slot.get()] = ItemStack.EMPTY;
+                        default -> throw new MatchException(null, null);
+                    }
                 }
             }
         }
@@ -287,10 +309,10 @@ public class Utils {
 
     public static boolean hasItems(ItemStack itemStack) {
         ContainerComponentAccessor container = ((ContainerComponentAccessor) (Object) itemStack.get(DataComponentTypes.CONTAINER));
-        if (container != null && !container.getStacks().isEmpty()) return true;
+        if (container != null && !container.meteor$getStacks().isEmpty()) return true;
 
-        NbtCompound compoundTag = itemStack.getOrDefault(DataComponentTypes.BLOCK_ENTITY_DATA, NbtComponent.DEFAULT).getNbt();
-        return compoundTag != null && compoundTag.contains("Items", 9);
+        TypedEntityData<BlockEntityType<?>> blockEntityData = itemStack.get(DataComponentTypes.BLOCK_ENTITY_DATA);
+        return blockEntityData != null && blockEntityData.contains("Items");
     }
 
     public static Reference2IntMap<StatusEffect> createStatusEffectMap() {
@@ -374,12 +396,16 @@ public class Utils {
         return FILE_NAME_INVALID_CHARS_PATTERN.matcher(getWorldName()).replaceAll("_");
     }
 
+    /**
+     * Use {@link Utils#getFileWorldName()} if you are using the world name as a file/directory name
+     */
     public static String getWorldName() {
         // Singleplayer
         if (mc.isInSingleplayer()) {
             if (mc.world == null) return "";
+            if (mc.getServer() == null) return "FAILED_BECAUSE_LEFT_WORLD";
 
-            File folder = ((MinecraftServerAccessor) mc.getServer()).getSession().getWorldDirectory(mc.world.getRegistryKey()).toFile();
+            File folder = ((MinecraftServerAccessor) mc.getServer()).meteor$getSession().getWorldDirectory(mc.world.getRegistryKey()).toFile();
             if (folder.toPath().relativize(mc.runDirectory.toPath()).getNameCount() != 2) {
                 folder = folder.getParentFile();
             }
@@ -437,6 +463,7 @@ public class Utils {
             case GLFW_KEY_ENTER -> "Enter";
             case GLFW_KEY_KP_ENTER -> "Numpad Enter";
             case GLFW_KEY_NUM_LOCK -> "Num Lock";
+            case GLFW_KEY_SCROLL_LOCK -> "Scroll Lock";
             case GLFW_KEY_SPACE -> "Space";
             case GLFW_KEY_F1 -> "F1";
             case GLFW_KEY_F2 -> "F2";
@@ -517,13 +544,13 @@ public class Utils {
         // check if a screen is open
         // see net.minecraft.client.Mouse.lockCursor
         // see net.minecraft.client.MinecraftClient.tick
-        int attackCooldown = ((MinecraftClientAccessor) mc).getAttackCooldown();
+        int attackCooldown = ((MinecraftClientAccessor) mc).meteor$getAttackCooldown();
         if (attackCooldown == 10000) {
-            ((MinecraftClientAccessor) mc).setAttackCooldown(0);
+            ((MinecraftClientAccessor) mc).meteor$setAttackCooldown(0);
         }
 
         mc.options.attackKey.setPressed(true);
-        ((MinecraftClientAccessor) mc).leftClick();
+        ((MinecraftClientAccessor) mc).meteor$leftClick();
         mc.options.attackKey.setPressed(false);
     }
 
@@ -563,8 +590,8 @@ public class Utils {
     }
 
     public static boolean isLoading() {
-        ResourceReloadLogger.ReloadState state = ((ResourceReloadLoggerAccessor) ((MinecraftClientAccessor) mc).getResourceReloadLogger()).getReloadState();
-        return state == null || !((ReloadStateAccessor) state).isFinished();
+        ResourceReloadLogger.ReloadState state = ((ResourceReloadLoggerAccessor) ((MinecraftClientAccessor) mc).meteor$getResourceReloadLogger()).meteor$getReloadState();
+        return state == null || !((ReloadStateAccessor) state).meteor$isFinished();
     }
 
     public static int parsePort(String full) {
@@ -626,6 +653,6 @@ public class Utils {
 
     public static boolean ipFilter(String text, char character) {
         if (text.contains(":") && character == ':') return false;
-        return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '.' || character == '-';
+        return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '.' || character == '-' || character == ':';
     }
 }

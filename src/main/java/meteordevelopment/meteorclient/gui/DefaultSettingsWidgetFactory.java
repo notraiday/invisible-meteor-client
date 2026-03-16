@@ -22,10 +22,11 @@ import meteordevelopment.meteorclient.gui.widgets.pressable.WMinus;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WPlus;
 import meteordevelopment.meteorclient.renderer.Fonts;
 import meteordevelopment.meteorclient.settings.*;
+import meteordevelopment.meteorclient.systems.hud.elements.keyboard.KeyboardHud;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import net.minecraft.client.resource.language.I18n;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -71,6 +72,7 @@ public class DefaultSettingsWidgetFactory extends SettingsWidgetFactory {
         factories.put(ColorListSetting.class, (table, setting) -> colorListW(table, (ColorListSetting) setting));
         factories.put(FontFaceSetting.class, (table, setting) -> fontW(table, (FontFaceSetting) setting));
         factories.put(Vector3dSetting.class, (table, setting) -> vector3dW(table, (Vector3dSetting) setting));
+        factories.put(KeyboardHud.CustomKeyListSetting.class, (table, setting) -> customKeyListW(table, (KeyboardHud.CustomKeyListSetting) setting));
     }
 
     @Override
@@ -110,7 +112,7 @@ public class DefaultSettingsWidgetFactory extends SettingsWidgetFactory {
         RemoveInfo removeInfo = null;
 
         for (Setting<?> setting : group) {
-            if (!StringUtils.containsIgnoreCase(setting.title, filter)) continue;
+            if (!Strings.CI.contains(setting.title, filter)) continue;
 
             boolean visible = setting.isVisible();
             setting.lastWasVisible = visible;
@@ -188,7 +190,7 @@ public class DefaultSettingsWidgetFactory extends SettingsWidgetFactory {
 
     private void stringW(WTable table, StringSetting setting) {
         CharFilter filter = setting.filter == null ? (text, c) -> true : setting.filter;
-        Cell<WTextBox> cell = table.add(theme.textBox(setting.get(), filter, setting.renderer));
+        Cell<WTextBox> cell = table.add(theme.textBox(setting.get(), setting.placeholder, filter, setting.renderer));
         if (setting.wide) cell.minWidth(Utils.getWindowWidth() - Utils.getWindowWidth() / 4.0);
 
         WTextBox textBox = cell.expandX().widget();
@@ -218,7 +220,7 @@ public class DefaultSettingsWidgetFactory extends SettingsWidgetFactory {
 
     private void genericW(WTable table, GenericSetting<?> setting) {
         WButton edit = table.add(theme.button(GuiRenderer.EDIT)).widget();
-        edit.action = () -> mc.setScreen(setting.get().createScreen(theme));
+        edit.action = () -> mc.setScreen(setting.createScreen(theme));
 
         reset(table, setting, null);
     }
@@ -243,6 +245,7 @@ public class DefaultSettingsWidgetFactory extends SettingsWidgetFactory {
 
         WButton reset = list.add(theme.button(GuiRenderer.RESET)).expandCellX().right().widget();
         reset.action = keybind::resetBind;
+        reset.tooltip = "Reset";
     }
 
     private void blockW(WTable table, BlockSetting setting) {
@@ -337,7 +340,7 @@ public class DefaultSettingsWidgetFactory extends SettingsWidgetFactory {
 
     private void blockDataW(WTable table, BlockDataSetting<?> setting) {
         WButton button = table.add(theme.button(GuiRenderer.EDIT)).expandCellX().widget();
-        button.action = () -> mc.setScreen(new BlockDataSettingScreen(theme, setting));
+        button.action = () -> mc.setScreen(new BlockDataSettingScreen<>(theme, setting));
 
         reset(table, setting, null);
     }
@@ -449,14 +452,25 @@ public class DefaultSettingsWidgetFactory extends SettingsWidgetFactory {
 
         WDoubleEdit component = table.add(theme.doubleEdit(value, setting.min, setting.max, setting.sliderMin, setting.sliderMax, setting.decimalPlaces, setting.noSlider)).expandX().widget();
         if (setting.onSliderRelease) {
-            component.actionOnRelease = () -> update.accept(component.get());
+            component.actionOnRelease = () -> {
+                update.accept(component.get());
+                setting.onChanged();
+            };
         } else {
-            component.action = () -> update.accept(component.get());
+            component.action = () -> {
+                update.accept(component.get());
+                setting.onChanged();
+            };
         }
 
         table.row();
 
         return component;
+    }
+
+    private void customKeyListW(WTable table, KeyboardHud.CustomKeyListSetting setting) {
+        WTable wtable = table.add(theme.table()).expandX().widget();
+        KeyboardHud.fillTable(theme, wtable, setting);
     }
 
     // Other
@@ -484,6 +498,7 @@ public class DefaultSettingsWidgetFactory extends SettingsWidgetFactory {
             setting.reset();
             if (action != null) action.run();
         };
+        reset.tooltip = "Reset";
     }
 
     private static class WSelectedCountLabel extends WMeteorLabel {

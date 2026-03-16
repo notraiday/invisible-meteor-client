@@ -548,6 +548,8 @@ public class Notebot extends Module {
             BlockPos blockPos = entry.getValue();
 
             BlockState blockState = mc.world.getBlockState(blockPos);
+            if (blockState.getBlock() != Blocks.NOTE_BLOCK) continue;
+
             int currentLevel = blockState.get(NoteBlock.NOTE);
 
             if (targetLevel != currentLevel) {
@@ -624,7 +626,7 @@ public class Notebot extends Module {
     }
 
     public void pause() {
-        if (!isActive()) toggle();
+        enable();
         if (isPlaying) {
             info("Pausing.");
             isPlaying = false;
@@ -636,7 +638,7 @@ public class Notebot extends Module {
 
     public void stop() {
         info("Stopping.");
-        disable();
+        disableNotebot();
         updateStatus();
     }
 
@@ -660,9 +662,9 @@ public class Notebot extends Module {
         }
     }
 
-    public void disable() {
+    public void disableNotebot() {
         resetVariables();
-        if (!isActive()) toggle();
+        enable();
     }
 
     /**
@@ -671,7 +673,7 @@ public class Notebot extends Module {
      * @param file Song supported by one of {@link SongDecoder}
      */
     public void loadSong(File file) {
-        if (!isActive()) toggle();
+        enable();
         resetVariables();
 
         this.playingMode = PlayingMode.Noteblocks;
@@ -688,7 +690,7 @@ public class Notebot extends Module {
      * @param file Song supported by one of {@link SongDecoder}
      */
     public void previewSong(File file) {
-        if (!isActive()) toggle();
+        enable();
         resetVariables();
 
         this.playingMode = PlayingMode.Preview;
@@ -829,7 +831,7 @@ public class Notebot extends Module {
 
     private void tuneBlocks() {
         if (mc.world == null || mc.player == null) {
-            disable();
+            disableNotebot();
         }
 
         if (swingArm.get()) {
@@ -868,7 +870,7 @@ public class Notebot extends Module {
 
     private void tuneNoteblockWithPackets(BlockPos pos) {
         // We don't need to raycast here. Server handles this packet fine
-        mc.player.networkHandler.sendPacket(new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, new BlockHitResult(Vec3d.ofCenter(pos), Direction.DOWN, pos, false), 0));
+        mc.interactionManager.sendSequencedPacket(mc.world, (sequence) -> new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, new BlockHitResult(Vec3d.ofCenter(pos), Direction.DOWN, pos, false), sequence));
 
         anyNoteblockTuned = true;
     }
@@ -925,7 +927,7 @@ public class Notebot extends Module {
     private void playRotate(BlockPos pos) {
         if (mc.interactionManager == null) return;
         try {
-            mc.player.networkHandler.sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, pos, Direction.DOWN, 0));
+            mc.interactionManager.sendSequencedPacket(mc.world, (sequence) -> new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, pos, Direction.DOWN, sequence));
         } catch (NullPointerException ignored) {
         }
     }

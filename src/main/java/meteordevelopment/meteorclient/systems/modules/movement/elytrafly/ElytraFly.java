@@ -9,6 +9,7 @@ import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.entity.player.PlayerMoveEvent;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
+import meteordevelopment.meteorclient.mixin.AbstractBlockAccessor;
 import meteordevelopment.meteorclient.mixininterface.IVec3d;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
@@ -162,8 +163,11 @@ public class ElytraFly extends Module {
 
     public final Setting<Double> pitch40lowerBounds = sgGeneral.add(new DoubleSetting.Builder()
         .name("pitch40-lower-bounds")
-        .description("The bottom height boundary for pitch40.")
-        .defaultValue(80)
+        .description(
+            "The bottom height boundary for pitch40. You must be at least 40 blocks above this boundary when starting the module.\n" +
+            "After descending below this boundary you will start pitching upwards."
+        )
+        .defaultValue(180)
         .min(-128)
         .sliderMax(360)
         .visible(() -> flightMode.get() == ElytraFlightModes.Pitch40)
@@ -172,20 +176,33 @@ public class ElytraFly extends Module {
 
     public final Setting<Double> pitch40upperBounds = sgGeneral.add(new DoubleSetting.Builder()
         .name("pitch40-upper-bounds")
-        .description("The upper height boundary for pitch40.")
-        .defaultValue(120)
+        .description(
+            "The upper height boundary for pitch40. You must be above this boundary when starting the module.\n" +
+            "When ascending above this boundary, if you are not already, you will start pitching downwards."
+        )
+        .defaultValue(220)
         .min(-128)
         .sliderMax(360)
         .visible(() -> flightMode.get() == ElytraFlightModes.Pitch40)
         .build()
     );
 
-    public final Setting<Double> pitch40rotationSpeed = sgGeneral.add(new DoubleSetting.Builder()
-        .name("pitch40-rotate-speed")
-        .description("The speed for pitch rotation (degrees per tick)")
-        .defaultValue(4)
+    public final Setting<Double> pitch40rotationSpeedUp = sgGeneral.add(new DoubleSetting.Builder()
+        .name("pitch40-rotate-speed-up")
+        .description("The speed for pitch rotation upwards (degrees per tick).")
+        .defaultValue(5.45)
         .min(1)
-        .sliderMax(6)
+        .sliderMax(20)
+        .visible(() -> flightMode.get() == ElytraFlightModes.Pitch40)
+        .build()
+    );
+
+	public final Setting<Double> pitch40rotationSpeedDown = sgGeneral.add(new DoubleSetting.Builder()
+        .name("pitch40-rotate-speed-down")
+        .description("The speed for pitch rotation downwards (degrees per tick).")
+        .defaultValue(0.90)
+        .min(0.5)
+        .sliderMax(2)
         .visible(() -> flightMode.get() == ElytraFlightModes.Pitch40)
         .build()
     );
@@ -199,11 +216,29 @@ public class ElytraFly extends Module {
     );
 
     public final Setting<Rotation.LockMode> yawLockMode = sgGeneral.add(new EnumSetting.Builder<Rotation.LockMode>()
-            .name("yaw-lock")
-            .description("Whether to enable yaw lock or not")
-            .defaultValue(Rotation.LockMode.Smart)
-            .visible(() -> flightMode.get() == ElytraFlightModes.Bounce)
-            .build()
+        .name("yaw-lock")
+        .description("Whether to enable yaw lock or not")
+        .defaultValue(Rotation.LockMode.Smart)
+        .visible(() -> flightMode.get() == ElytraFlightModes.Bounce)
+        .build()
+    );
+
+    public final Setting<Double> yaw = sgGeneral.add(new DoubleSetting.Builder()
+        .name("yaw")
+        .description("The yaw angle to look at when using simple rotation lock in bounce mode.")
+        .defaultValue(0)
+        .range(0, 360)
+        .sliderRange(0,360)
+        .visible(() -> flightMode.get() == ElytraFlightModes.Bounce && yawLockMode.get() == Rotation.LockMode.Simple)
+        .build()
+    );
+
+    public final Setting<Boolean> lockPitch = sgGeneral.add(new BoolSetting.Builder()
+        .name("pitch-lock")
+        .description("Whether to lock your pitch angle.")
+        .defaultValue(true)
+        .visible(() -> flightMode.get() == ElytraFlightModes.Bounce)
+        .build()
     );
 
     public final Setting<Double> pitch = sgGeneral.add(new DoubleSetting.Builder()
@@ -212,18 +247,8 @@ public class ElytraFly extends Module {
         .defaultValue(85)
         .range(0, 90)
         .sliderRange(0, 90)
-        .visible(() -> flightMode.get() == ElytraFlightModes.Bounce)
+        .visible(() -> flightMode.get() == ElytraFlightModes.Bounce && lockPitch.get())
         .build()
-    );
-
-    public final Setting<Double> yaw = sgGeneral.add(new DoubleSetting.Builder()
-            .name("yaw")
-            .description("The yaw angle to look at when using simple rotation lock in bounce mode.")
-            .defaultValue(0)
-            .range(0, 360)
-            .sliderRange(0,360)
-            .visible(() -> flightMode.get() == ElytraFlightModes.Bounce && yawLockMode.get() == Rotation.LockMode.Simple)
-            .build()
     );
 
     public final Setting<Boolean> restart = sgGeneral.add(new BoolSetting.Builder()
@@ -245,9 +270,17 @@ public class ElytraFly extends Module {
     );
 
     public final Setting<Boolean> sprint = sgGeneral.add(new BoolSetting.Builder()
-        .name("sprint")
+        .name("sprint-constantly")
         .description("Sprints all the time. If turned off, it will only sprint when the player is touching the ground.")
         .defaultValue(true)
+        .visible(() -> flightMode.get() == ElytraFlightModes.Bounce)
+        .build()
+    );
+
+    public final Setting<Boolean> manualTakeoff = sgGeneral.add(new BoolSetting.Builder()
+        .name("manual-takeoff")
+        .description("Does not automatically take off.")
+        .defaultValue(false)
         .visible(() -> flightMode.get() == ElytraFlightModes.Bounce)
         .build()
     );
@@ -265,8 +298,8 @@ public class ElytraFly extends Module {
         .name("replace-durability")
         .description("The durability threshold your elytra will be replaced at.")
         .defaultValue(2)
-        .range(1, Items.ELYTRA.getComponents().get(DataComponentTypes.MAX_DAMAGE) - 1)
-        .sliderRange(1, Items.ELYTRA.getComponents().get(DataComponentTypes.MAX_DAMAGE) - 1)
+        .range(1, Items.ELYTRA.getComponents().getOrDefault(DataComponentTypes.MAX_DAMAGE, 432) - 1)
+        .sliderRange(1, Items.ELYTRA.getComponents().getOrDefault(DataComponentTypes.MAX_DAMAGE, 432) - 1)
         .visible(replace::get)
         .build()
     );
@@ -414,8 +447,8 @@ public class ElytraFly extends Module {
         }
 
         if (noCrash.get() && mc.player.isGliding() && flightMode.get() != ElytraFlightModes.Bounce) {
-            Vec3d lookAheadPos = mc.player.getPos().add(mc.player.getVelocity().normalize().multiply(crashLookAhead.get()));
-            RaycastContext raycastContext = new RaycastContext(mc.player.getPos(), new Vec3d(lookAheadPos.getX(), mc.player.getY(), lookAheadPos.getZ()), RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, mc.player);
+            Vec3d lookAheadPos = mc.player.getEntityPos().add(mc.player.getVelocity().normalize().multiply(crashLookAhead.get()));
+            RaycastContext raycastContext = new RaycastContext(mc.player.getEntityPos(), new Vec3d(lookAheadPos.getX(), mc.player.getY(), lookAheadPos.getZ()), RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, mc.player);
             BlockHitResult hitResult = mc.world.raycast(raycastContext);
             if (hitResult != null && hitResult.getType() == HitResult.Type.BLOCK) {
                 ((IVec3d) event.movement).meteor$set(0, currentMode.velY, 0);
@@ -428,8 +461,8 @@ public class ElytraFly extends Module {
             BlockState under2State = mc.world.getBlockState(mc.player.getBlockPos().down().down());
             Block under2 = under2State.getBlock();
 
-            final boolean underCollidable = under.collidable || !underState.getFluidState().isEmpty();
-            final boolean under2Collidable = under2.collidable || !under2State.getFluidState().isEmpty();
+            final boolean underCollidable = ((AbstractBlockAccessor) under).meteor$isCollidable() || !underState.getFluidState().isEmpty();
+            final boolean under2Collidable = ((AbstractBlockAccessor) under2).meteor$isCollidable() || !under2State.getFluidState().isEmpty();
 
             if (!underCollidable && under2Collidable) {
                 ((IVec3d)event.movement).meteor$set(event.movement.x, -0.1f, event.movement.z);
@@ -442,7 +475,7 @@ public class ElytraFly extends Module {
 
                 mc.player.setPitch(MathHelper.clamp(mc.player.getPitch(0), -50.f, 20.f));
 
-                if (mc.player.getPos().y <= mc.player.getBlockPos().down().getY() + 1.34f) {
+                if (mc.player.getEntityPos().y <= mc.player.getBlockPos().down().getY() + 1.34f) {
                     ((IVec3d)event.movement).meteor$set(event.movement.x, 0, event.movement.z);
                     mc.player.setSneaking(false);
                 }

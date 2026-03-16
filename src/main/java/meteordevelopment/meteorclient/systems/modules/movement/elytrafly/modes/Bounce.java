@@ -9,18 +9,18 @@
 
 package meteordevelopment.meteorclient.systems.modules.movement.elytrafly.modes;
 
+import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.systems.modules.movement.elytrafly.ElytraFlightMode;
 import meteordevelopment.meteorclient.systems.modules.movement.elytrafly.ElytraFlightModes;
-import meteordevelopment.meteorclient.utils.misc.input.Input;
+import net.minecraft.block.BlockState;
 import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.registry.tag.BlockTags;
 
 public class Bounce extends ElytraFlightMode {
 
@@ -37,17 +37,16 @@ public class Bounce extends ElytraFlightMode {
     public void onTick() {
         super.onTick();
 
-        if (mc.options.jumpKey.isPressed() && !mc.player.isGliding()) mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
+        if (mc.options.jumpKey.isPressed() && !mc.player.isGliding() && !elytraFly.manualTakeoff.get()) mc.getNetworkHandler().sendPacket(new ClientCommandC2SPacket(mc.player, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
 
         // Make sure all the conditions are met (player has an elytra, isn't in water, etc)
         if (checkConditions(mc.player)) {
-
             if (!rubberbanded) {
                 if (prevFov != 0 && !elytraFly.sprint.get()) mc.options.getFovEffectScale().setValue(0.0); // This stops the FOV effects from constantly going on and off.
-                if (elytraFly.autoJump.get()) setPressed(mc.options.jumpKey, true);
-                setPressed(mc.options.forwardKey, true);
+                if (elytraFly.autoJump.get()) mc.options.jumpKey.setPressed(true);
+                mc.options.forwardKey.setPressed(true);
                 mc.player.setYaw(getYawDirection());
-                mc.player.setPitch(elytraFly.pitch.get().floatValue());
+                if (elytraFly.lockPitch.get()) mc.player.setPitch(elytraFly.pitch.get().floatValue());
             }
 
             if (!elytraFly.sprint.get()) {
@@ -77,8 +76,8 @@ public class Bounce extends ElytraFlightMode {
     }
 
     private void unpress() {
-        setPressed(mc.options.forwardKey, false);
-        if (elytraFly.autoJump.get()) setPressed(mc.options.jumpKey, false);
+        mc.options.forwardKey.setPressed(false);
+        if (elytraFly.autoJump.get()) mc.options.jumpKey.setPressed(false);
     }
 
     @Override
@@ -96,32 +95,28 @@ public class Bounce extends ElytraFlightMode {
         }
     }
 
-
-    private void setPressed(KeyBinding key, boolean pressed) {
-        key.setPressed(pressed);
-        Input.setKeyState(key, pressed);
-    }
-
     public static boolean recastElytra(ClientPlayerEntity player) {
-        if (checkConditions(player) && ignoreGround(player)) {
+        if (checkConditions(player) && startGliding(player)) {
             player.networkHandler.sendPacket(new ClientCommandC2SPacket(player, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
             return true;
         } else return false;
     }
 
     public static boolean checkConditions(ClientPlayerEntity player) {
-        ItemStack itemStack = player.getEquippedStack(EquipmentSlot.CHEST);
-        return (!player.getAbilities().flying && !player.hasVehicle() && !player.isClimbing() && itemStack.contains(DataComponentTypes.GLIDER) && !itemStack.willBreakNextUse());
+        BlockState blockState = player.getBlockStateAtPos();
+        boolean isClimbing = (blockState.isIn(BlockTags.CLIMBABLE) && !blockState.isIn(BlockTags.CAN_GLIDE_THROUGH));
+        return (!player.getAbilities().flying && !player.hasVehicle() && !isClimbing && !player.isTouchingWater() && !player.hasStatusEffect(StatusEffects.LEVITATION));
     }
 
-    private static boolean ignoreGround(ClientPlayerEntity player) {
-        if (!player.isTouchingWater() && !player.hasStatusEffect(StatusEffects.LEVITATION)) {
-            ItemStack itemStack = player.getEquippedStack(EquipmentSlot.CHEST);
-            if (itemStack.contains(DataComponentTypes.GLIDER) && !itemStack.willBreakNextUse()) {
-                player.startGliding();
+    private static boolean startGliding(ClientPlayerEntity player) {
+        for (EquipmentSlot equipmentSlot : EquipmentSlot.VALUES) {
+            if (LivingEntity.canGlideWith(player.getEquippedStack(equipmentSlot), equipmentSlot)) {
+                MeteorClient.mc.executeSync(player::startGliding);
                 return true;
-            } else return false;
-        } else return false;
+            }
+        }
+
+        return false;
     }
 
     private float getYawDirection() {

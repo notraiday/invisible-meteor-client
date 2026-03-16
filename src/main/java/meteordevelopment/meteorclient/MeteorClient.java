@@ -9,7 +9,7 @@ import meteordevelopment.meteorclient.addons.AddonManager;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.events.game.OpenScreenEvent;
 import meteordevelopment.meteorclient.events.meteor.KeyEvent;
-import meteordevelopment.meteorclient.events.meteor.MouseButtonEvent;
+import meteordevelopment.meteorclient.events.meteor.MouseClickEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.gui.GuiThemes;
 import meteordevelopment.meteorclient.gui.WidgetScreen;
@@ -40,6 +40,7 @@ import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.spongepowered.asm.mixin.MixinEnvironment;
 
 
 
@@ -90,11 +91,18 @@ public class MeteorClient implements ClientModInitializer {
         // Global minecraft client accessor
         mc = MinecraftClient.getInstance();
 
+        if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            LOG.info("Force loading mixins");
+            MixinEnvironment.getCurrentEnvironment().audit();
+        }
+
+        LOG.info("Initializing {}", NAME);
+
         // Pre-load
         if (!FOLDER.exists()) {
             FOLDER.getParentFile().mkdirs();
             FOLDER.mkdir();
-            Systems.addPreLoadTask(() -> Modules.get().get(DiscordPresence.class).toggle());
+            Systems.addPreLoadTask(() -> Modules.get().get(DiscordPresence.class).enable());
         }
 
         // Register addons
@@ -153,23 +161,23 @@ public class MeteorClient implements ClientModInitializer {
         }));
     }
 
-    // @EventHandler
-    // private void onTick(TickEvent.Post event) {
-    //     if (mc.currentScreen == null && mc.getOverlay() == null && KeyBinds.OPEN_COMMANDS.wasPressed()) {
-    //         mc.setScreen(new ChatScreen(Config.get().prefix.get()));
-    //     }
-    // }
+    @EventHandler
+    private void onTick(TickEvent.Post event) {
+        if (mc.currentScreen == null && mc.getOverlay() == null && KeyBinds.OPEN_COMMANDS.wasPressed()) {
+            mc.setScreen(new ChatScreen(Config.get().prefix.get(), true));
+        }
+    }
 
     @EventHandler
     private void onKey(KeyEvent event) {
-        if (event.action == KeyAction.Press && KeyBinds.OPEN_GUI.matchesKey(event.key, 0)) {
+        if (event.action == KeyAction.Press && KeyBinds.OPEN_GUI.matchesKey(event.input)) {
             toggleGui();
         }
     }
 
     @EventHandler
-    private void onMouseButton(MouseButtonEvent event) {
-        if (event.action == KeyAction.Press && KeyBinds.OPEN_GUI.matchesMouse(event.button)) {
+    private void onMouseClick(MouseClickEvent event) {
+        if (event.action == KeyAction.Press && KeyBinds.OPEN_GUI.matchesMouse(event.click)) {
             toggleGui();
         }
     }

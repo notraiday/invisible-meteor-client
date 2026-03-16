@@ -12,6 +12,7 @@ import meteordevelopment.meteorclient.utils.player.FindItemResult;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.play.ClientCommandC2SPacket;
@@ -48,7 +49,7 @@ public class ElytraFlightMode {
         }
 
         if (elytraFly.replace.get()) {
-            ItemStack chestStack = mc.player.getInventory().getArmorStack(2);
+            ItemStack chestStack = mc.player.getEquippedStack(EquipmentSlot.CHEST);
 
             if (chestStack.getItem() == Items.ELYTRA) {
                 if (chestStack.getMaxDamage() - chestStack.getDamage() <= elytraFly.replaceDurability.get()) {
@@ -87,7 +88,8 @@ public class ElytraFlightMode {
 
         boolean jumpPressed = mc.options.jumpKey.isPressed();
 
-        if (elytraFly.autoTakeOff.get() && jumpPressed) {
+        if ((elytraFly.autoTakeOff.get() && elytraFly.flightMode.get() != ElytraFlightModes.Pitch40 && elytraFly.flightMode.get() != ElytraFlightModes.Bounce) ||
+            (!elytraFly.manualTakeoff.get() && elytraFly.flightMode.get() == ElytraFlightModes.Bounce) && jumpPressed) {
             if (!lastJumpPressed && !mc.player.isGliding()) {
                 jumpTimer = 0;
                 incrementJumpTimer = true;

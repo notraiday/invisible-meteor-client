@@ -6,22 +6,25 @@
 package meteordevelopment.meteorclient.systems.modules.combat;
 
 import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.mixin.ProjectileEntityAccessor;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
-import meteordevelopment.meteorclient.utils.entity.ProjectileEntitySimulator;
+import meteordevelopment.meteorclient.utils.entity.simulator.ProjectileEntitySimulator;
 import meteordevelopment.meteorclient.utils.misc.Pool;
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.projectile.ArrowEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
+import net.minecraft.entity.projectile.SpectralArrowEntity;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3d;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 public class ArrowDodge extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -52,13 +55,6 @@ public class ArrowDodge extends Module {
         .build()
     );
 
-    private final Setting<Boolean> accurate = sgGeneral.add(new BoolSetting.Builder()
-        .name("accurate")
-        .description("Whether or not to calculate more accurate.")
-        .defaultValue(false)
-        .build()
-    );
-
     private final Setting<Boolean> groundCheck = sgGeneral.add(new BoolSetting.Builder()
         .name("ground-check")
         .description("Tries to prevent you from falling to your death.")
@@ -76,7 +72,7 @@ public class ArrowDodge extends Module {
     private final Setting<Boolean> ignoreOwn = sgGeneral.add(new BoolSetting.Builder()
         .name("ignore-own")
         .description("Ignore your own projectiles.")
-        .defaultValue(false)
+        .defaultValue(true)
         .build()
     );
 
@@ -109,27 +105,28 @@ public class ArrowDodge extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        for (Vector3d point : points) vec3s.free(point);
+        vec3s.freeAll(points);
         points.clear();
 
         for (Entity e : mc.world.getEntities()) {
-            if (!(e instanceof ProjectileEntity)) continue;
-            if (!allProjectiles.get() && !(e instanceof ArrowEntity)) continue;
+            if (!(e instanceof ProjectileEntity projectile)) continue;
+            if (!allProjectiles.get() && !(projectile instanceof ArrowEntity || projectile instanceof SpectralArrowEntity)) continue;
             if (ignoreOwn.get()) {
-                UUID owner = ((ProjectileEntityAccessor) e).getOwnerUuid();
-                if (owner != null && owner.equals(mc.player.getUuid())) continue;
+                Entity owner = projectile.getOwner();
+                if (owner != null && owner.getUuid().equals(mc.player.getUuid())) continue;
             }
-            if (!simulator.set(e, accurate.get())) continue;
+
+            if (!simulator.set(projectile)) continue;
             for (int i = 0; i < (simulationSteps.get() > 0 ? simulationSteps.get() : Integer.MAX_VALUE); i++) {
                 points.add(vec3s.get().set(simulator.pos));
-                if (simulator.tick() != null) break;
+                if (simulator.tick().shouldStop) break;
             }
         }
 
         if (isValid(Vec3d.ZERO, false)) return; // no need to move
 
         double speed = moveSpeed.get();
-        for (int i = 0; i < 500; i++) { // its not a while loop so it doesn't freeze if something is wrong
+        for (int i = 0; i < 500; i++) { // it's not a while loop so it doesn't freeze if something is wrong
             boolean didMove = false;
             Collections.shuffle(possibleMoveDirections); //Make the direction unpredictable
             for (Vec3d direction : possibleMoveDirections) {
@@ -154,7 +151,7 @@ public class ArrowDodge extends Module {
         switch (moveType.get()) {
             case Velocity -> mc.player.setVelocity(velX, velY, velZ);
             case Packet -> {
-                Vec3d newPos = mc.player.getPos().add(velX, velY, velZ);
+                Vec3d newPos = mc.player.getEntityPos().add(velX, velY, velZ);
                 mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(newPos.x, newPos.y, newPos.z, false, mc.player.horizontalCollision));
                 mc.player.networkHandler.sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(newPos.x, newPos.y - 0.01, newPos.z, true, mc.player.horizontalCollision));
             }
@@ -162,7 +159,7 @@ public class ArrowDodge extends Module {
     }
 
     private boolean isValid(Vec3d velocity, boolean checkGround) {
-        Vec3d playerPos = mc.player.getPos().add(velocity);
+        Vec3d playerPos = mc.player.getEntityPos().add(velocity);
         Vec3d headPos = playerPos.add(0, 1, 0);
 
         for (Vector3d pos : points) {

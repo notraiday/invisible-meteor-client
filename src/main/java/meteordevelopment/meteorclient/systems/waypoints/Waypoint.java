@@ -6,7 +6,6 @@
 package meteordevelopment.meteorclient.systems.waypoints;
 
 import meteordevelopment.meteorclient.MeteorClient;
-import meteordevelopment.meteorclient.renderer.GL;
 import meteordevelopment.meteorclient.renderer.Renderer2D;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.utils.misc.ISerializable;
@@ -16,6 +15,7 @@ import meteordevelopment.meteorclient.utils.world.Dimension;
 import net.minecraft.client.texture.AbstractTexture;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.util.Uuids;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.Map;
@@ -27,6 +27,10 @@ public class Waypoint implements ISerializable<Waypoint> {
 
     private final SettingGroup sgVisual = settings.createGroup("Visual");
     private final SettingGroup sgPosition = settings.createGroup("Position");
+
+    public enum NearAction {
+        Disabled, Hide, Delete
+    }
 
     public Setting<String> name = sgVisual.add(new StringSetting.Builder()
         .name("name")
@@ -68,7 +72,7 @@ public class Waypoint implements ISerializable<Waypoint> {
     public Setting<Double> scale = sgVisual.add(new DoubleSetting.Builder()
         .name("scale")
         .description("The scale of the waypoint.")
-        .defaultValue(1)
+        .defaultValue(1.5)
         .build()
     );
 
@@ -94,17 +98,38 @@ public class Waypoint implements ISerializable<Waypoint> {
         .build()
     );
 
+    public Setting<NearAction> actionWhenNear = sgPosition.add(new EnumSetting.Builder<NearAction>()
+        .name("action-when-near")
+        .description("Action to be performed when the player is near.")
+        .defaultValue(NearAction.Disabled)
+        .build()
+    );
+
+    public Setting<Integer> actionWhenNearDistance = sgPosition.add(new IntSetting.Builder()
+        .name("action-when-near-distance")
+        .description("How close (in blocks) the player has to be for the near action to be performed.")
+        .defaultValue(8)
+        .sliderRange(0, 32)
+        .visible(() -> actionWhenNear.get() != NearAction.Disabled)
+        .build()
+    );
+
     public final UUID uuid;
+    public final long createdAt;
+
+    // 1 second cooldown for waypoint actions
+    final int waypointActionCooldown = 1000;
 
     private Waypoint() {
         uuid = UUID.randomUUID();
+        createdAt = System.currentTimeMillis();
     }
 
     public Waypoint(NbtElement tag) {
         NbtCompound nbt = (NbtCompound) tag;
 
-        if (nbt.containsUuid("uuid")) uuid = nbt.getUuid("uuid");
-        else uuid = UUID.randomUUID();
+        uuid = nbt.get("uuid", Uuids.INT_STREAM_CODEC).orElse(UUID.randomUUID());
+        createdAt = System.currentTimeMillis();
 
         fromTag(nbt);
     }
@@ -116,10 +141,9 @@ public class Waypoint implements ISerializable<Waypoint> {
         int preA = color.get().a;
         color.get().a *= a;
 
-        GL.bindTexture(texture.getGlId());
         Renderer2D.TEXTURE.begin();
         Renderer2D.TEXTURE.texQuad(x, y, size, size, color.get());
-        Renderer2D.TEXTURE.render(null);
+        Renderer2D.TEXTURE.render(texture.getGlTextureView(), texture.getSampler());
 
         color.get().a = preA;
     }
@@ -136,6 +160,13 @@ public class Waypoint implements ISerializable<Waypoint> {
             case Nether -> new BlockPos(pos.getX() * 8, pos.getY(), pos.getZ() * 8);
             default -> null;
         };
+    }
+
+    public boolean actionWhenNearCheck(int distance) {
+        // Add cooldown to near check, to account for death event inaccuracies
+        if ((System.currentTimeMillis() - createdAt) < waypointActionCooldown) return false;
+
+        return actionWhenNearDistance.get() >= distance;
     }
 
     private void validateIcon() {
@@ -188,7 +219,7 @@ public class Waypoint implements ISerializable<Waypoint> {
     public NbtCompound toTag() {
         NbtCompound tag = new NbtCompound();
 
-        tag.putUuid("uuid", uuid);
+        tag.put("uuid", Uuids.INT_STREAM_CODEC, uuid);
         tag.put("settings", settings.toTag());
 
         return tag;
@@ -197,7 +228,7 @@ public class Waypoint implements ISerializable<Waypoint> {
     @Override
     public Waypoint fromTag(NbtCompound tag) {
         if (tag.contains("settings")) {
-            settings.fromTag(tag.getCompound("settings"));
+            settings.fromTag(tag.getCompoundOrEmpty("settings"));
         }
 
         return this;

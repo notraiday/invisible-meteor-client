@@ -8,7 +8,7 @@ package meteordevelopment.meteorclient.mixin;
 import meteordevelopment.meteorclient.gui.GuiThemes;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.systems.modules.render.MultiplayerTabAddons;
-import meteordevelopment.meteorclient.systems.modules.misc.NameProtect;
+import meteordevelopment.meteorclient.systems.modules.player.NameProtect;
 import meteordevelopment.meteorclient.systems.proxies.Proxies;
 import meteordevelopment.meteorclient.systems.proxies.Proxy;
 import meteordevelopment.meteorclient.utils.render.color.Color;
@@ -37,11 +37,17 @@ public abstract class MultiplayerScreenMixin extends Screen {
     @Unique
     private int loggedInAsLength;
 
+    @Unique
+    private ButtonWidget accounts;
+
+    @Unique
+    private ButtonWidget proxies;
+
     public MultiplayerScreenMixin(Text title) {
         super(title);
     }
 
-    @Inject(method = "init", at = @At("TAIL"))
+    @Inject(method = "refreshWidgetPositions", at = @At("TAIL"))
     private void onInit(CallbackInfo info) {
         if (!Modules.get().get(MultiplayerTabAddons.class).isActive()) {
             return;
@@ -52,19 +58,23 @@ public abstract class MultiplayerScreenMixin extends Screen {
         loggedInAs = "Logged in as ";
         loggedInAsLength = textRenderer.getWidth(loggedInAs);
 
-        addDrawableChild(
-            new ButtonWidget.Builder(Text.literal("Accounts"), button -> client.setScreen(GuiThemes.get().accountsScreen()))
-                .position(this.width - 75 - 3, 3)
-                .size(75, 20)
-                .build()
-        );
+        if (accounts == null) {
+            accounts = addDrawableChild(
+                new ButtonWidget.Builder(Text.literal("Accounts"), button -> client.setScreen(GuiThemes.get().accountsScreen()))
+                    .size(75, 20)
+                    .build()
+            );
+        }
+        accounts.setPosition(this.width - 75 - 3, 3);
 
-        addDrawableChild(
-            new ButtonWidget.Builder(Text.literal("Proxies"), button -> client.setScreen(GuiThemes.get().proxiesScreen()))
-                .position(this.width - 75 - 3 - 75 - 2, 3)
-                .size(75, 20)
-                .build()
-        );
+        if (proxies == null) {
+            proxies = addDrawableChild(
+                    new ButtonWidget.Builder(Text.literal("Proxies"), button -> client.setScreen(GuiThemes.get().proxiesScreen()))
+                        .size(75, 20)
+                        .build()
+                );
+        }
+        proxies.setPosition(this.width - 75 - 3 - 75 - 2, 3);
     }
 
     @Inject(method = "render", at = @At("TAIL"))

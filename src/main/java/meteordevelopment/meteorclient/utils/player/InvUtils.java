@@ -7,15 +7,21 @@ package meteordevelopment.meteorclient.utils.player;
 
 import meteordevelopment.meteorclient.mixininterface.IClientPlayerInteractionManager;
 import net.minecraft.block.BlockState;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.SlotActionType;
+import org.jetbrains.annotations.Range;
 
 import java.util.function.Predicate;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
+/**
+ * Util class for dealing inventories and the items in them.
+ * See {@link SlotUtils} for details on how slots are referenced.
+ */
 public class InvUtils {
     private static final Action ACTION = new Action();
     public static int previousSlot = -1;
@@ -58,7 +64,7 @@ public class InvUtils {
     public static boolean testInHotbar(Predicate<ItemStack> predicate) {
         if (testInHands(predicate)) return true;
 
-        for (int i = SlotUtils.HOTBAR_START; i < SlotUtils.HOTBAR_END; i++) {
+        for (int i = SlotUtils.HOTBAR_START; i <= SlotUtils.HOTBAR_END; i++) {
             ItemStack stack = mc.player.getInventory().getStack(i);
             if (predicate.test(stack)) return true;
         }
@@ -94,7 +100,7 @@ public class InvUtils {
         }
 
         if (testInMainHand(isGood)) {
-            return new FindItemResult(mc.player.getInventory().selectedSlot, mc.player.getMainHandStack().getCount());
+            return new FindItemResult(mc.player.getInventory().getSelectedSlot(), mc.player.getMainHandStack().getCount());
         }
 
         return find(isGood, 0, 8);
@@ -154,10 +160,10 @@ public class InvUtils {
     public static boolean swap(int slot, boolean swapBack) {
         if (slot == SlotUtils.OFFHAND) return true;
         if (slot < 0 || slot > 8) return false;
-        if (swapBack && previousSlot == -1) previousSlot = mc.player.getInventory().selectedSlot;
+        if (swapBack && previousSlot == -1) previousSlot = mc.player.getInventory().getSelectedSlot();
         else if (!swapBack) previousSlot = -1;
 
-        mc.player.getInventory().selectedSlot = slot;
+        mc.player.getInventory().setSelectedSlot(slot);
         ((IClientPlayerInteractionManager) mc.interactionManager).meteor$syncSelected();
         return true;
     }
@@ -201,6 +207,12 @@ public class InvUtils {
         return ACTION;
     }
 
+    public static Action dropOne() {
+        ACTION.type = SlotActionType.THROW;
+        ACTION.data = 0;
+        return ACTION;
+    }
+
     public static void dropHand() {
         if (!mc.player.currentScreenHandler.getCursorStack().isEmpty()) mc.interactionManager.clickSlot(mc.player.currentScreenHandler.syncId, ScreenHandler.EMPTY_SPACE_SLOT_INDEX, 0, SlotActionType.PICKUP, mc.player);
     }
@@ -224,11 +236,14 @@ public class InvUtils {
             return this;
         }
 
+        /**
+         * @param index The index of one of the slots within the inventory
+         */
         public Action from(int index) {
             return fromId(SlotUtils.indexToId(index));
         }
 
-        public Action fromHotbar(int i) {
+        public Action fromHotbar(@Range(from = 0, to = 8) int i) {
             return from(SlotUtils.HOTBAR_START + i);
         }
 
@@ -236,10 +251,13 @@ public class InvUtils {
             return from(SlotUtils.OFFHAND);
         }
 
-        public Action fromMain(int i) {
+        public Action fromMain(@Range(from = 0, to = 26) int i) {
             return from(SlotUtils.MAIN_START + i);
         }
 
+        /**
+         * @param i The entity slot id of one of the four humanoid armor pieces, as defined in {@link EquipmentSlot}
+         */
         public Action fromArmor(int i) {
             return from(SlotUtils.ARMOR_START + (3 - i));
         }
@@ -251,11 +269,14 @@ public class InvUtils {
             run();
         }
 
+        /**
+         * @param index The index of one of the slots within the inventory
+         */
         public void to(int index) {
             toId(SlotUtils.indexToId(index));
         }
 
-        public void toHotbar(int i) {
+        public void toHotbar(@Range(from = 0, to = 8) int i) {
             to(SlotUtils.HOTBAR_START + i);
         }
 
@@ -263,10 +284,13 @@ public class InvUtils {
             to(SlotUtils.OFFHAND);
         }
 
-        public void toMain(int i) {
+        public void toMain(@Range(from = 0, to = 26) int i) {
             to(SlotUtils.MAIN_START + i);
         }
 
+        /**
+         * @param i The entity slot id of one of the four humanoid armor pieces, as defined in {@link EquipmentSlot}
+         */
         public void toArmor(int i) {
             to(SlotUtils.ARMOR_START + (3 - i));
         }
@@ -278,11 +302,14 @@ public class InvUtils {
             run();
         }
 
+        /**
+         * @param index The index of one of the slots within the inventory
+         */
         public void slot(int index) {
             slotId(SlotUtils.indexToId(index));
         }
 
-        public void slotHotbar(int i) {
+        public void slotHotbar(@Range(from = 0, to = 8) int i) {
             slot(SlotUtils.HOTBAR_START + i);
         }
 
@@ -290,10 +317,13 @@ public class InvUtils {
             slot(SlotUtils.OFFHAND);
         }
 
-        public void slotMain(int i) {
+        public void slotMain(@Range(from = 0, to = 26) int i) {
             slot(SlotUtils.MAIN_START + i);
         }
 
+        /**
+         * @param i The entity slot id of one of the four humanoid armor pieces, as defined in {@link EquipmentSlot}
+         */
         public void slotArmor(int i) {
             slot(SlotUtils.ARMOR_START + (3 - i));
         }
