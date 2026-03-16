@@ -128,10 +128,10 @@ public class StringPairSetting extends Setting<List<Pair<String, String>>> {
     protected List<Pair<String, String>> load(NbtCompound tag) {
         get().clear();
 
-        NbtList valueTag = tag.getList("pairs", NbtList.COMPOUND_TYPE);
+        NbtList valueTag = tag.getListOrEmpty("pairs");
         for (int i = 0; i < valueTag.size(); i++) {
-            NbtCompound pairTag = valueTag.getCompound(i);
-            get().add(new Pair<>(pairTag.getString("left"), pairTag.getString("right")));
+            NbtCompound pairTag = valueTag.getCompound(i).orElse(new NbtCompound());
+            get().add(new Pair<>(pairTag.getString("left").orElse(""), pairTag.getString("right").orElse("")));
         }
 
         return get();

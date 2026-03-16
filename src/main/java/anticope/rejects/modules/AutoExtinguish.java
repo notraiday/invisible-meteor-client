@@ -22,6 +22,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -91,7 +92,7 @@ public class AutoExtinguish extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (mc.world.getDimension().respawnAnchorWorks()) {
+        if (mc.world.getRegistryKey() == World.NETHER) {
             if (doesWaterBucketWork) {
                 warning("Water Buckets don't work in this dimension!");
                 doesWaterBucketWork = false;
@@ -150,17 +151,17 @@ public class AutoExtinguish extends Module {
 
     private void place(int slot) {
         if (slot != -1) {
-            final int preSlot = mc.player.getInventory().selectedSlot;
+            final int preSlot = mc.player.getInventory().getSelectedSlot();
             if (center.get()) {
                 PlayerUtils.centerPlayer();
             }
-            mc.player.getInventory().selectedSlot = slot;
+            mc.player.getInventory().setSelectedSlot(slot);
             float yaw = mc.gameRenderer.getCamera().getYaw() % 360;
             float pitch = mc.gameRenderer.getCamera().getPitch() % 360;
 
             Rotations.rotate(yaw, 90);
             mc.interactionManager.interactItem(mc.player, Hand.MAIN_HAND);
-            mc.player.getInventory().selectedSlot = preSlot;
+            mc.player.getInventory().setSelectedSlot(preSlot);
             Rotations.rotate(yaw, pitch);
 
         }

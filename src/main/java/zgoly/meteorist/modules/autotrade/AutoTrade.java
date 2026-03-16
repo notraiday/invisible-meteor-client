@@ -87,17 +87,17 @@ public class AutoTrade extends Module {
         super.fromTag(tag);
 
         offers.clear();
-        NbtList list = tag.getList("offers", NbtElement.COMPOUND_TYPE);
+        NbtList list = tag.getListOrEmpty("offers");
 
         for (NbtElement tagII : list) {
             NbtCompound tagI = (NbtCompound) tagII;
 
-            String type = tagI.getString("type");
+            String type = tagI.getString("type").orElse("");
             BaseOffer offer = factory.createOffer(type);
 
             if (offer != null) {
-                NbtCompound offerTag = tagI.getCompound("offer");
-                if (offerTag != null) offer.fromTag(offerTag);
+                NbtCompound offerTag = tagI.getCompound("offer").orElse(new NbtCompound());
+                if (!offerTag.isEmpty()) offer.fromTag(offerTag);
 
                 offers.add(offer);
             }

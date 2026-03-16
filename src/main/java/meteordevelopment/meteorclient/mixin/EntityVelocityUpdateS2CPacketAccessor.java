@@ -13,6 +13,9 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 @Mixin(EntityVelocityUpdateS2CPacket.class)
 public interface EntityVelocityUpdateS2CPacketAccessor {
+    @Accessor("velocity")
+    Vec3d meteor$getVelocity();
+
     @Mutable
     @Accessor("velocity")
     void meteor$setVelocity(Vec3d velocity);

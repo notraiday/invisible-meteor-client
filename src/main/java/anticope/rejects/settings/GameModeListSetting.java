@@ -22,7 +22,13 @@ public class GameModeListSetting extends Setting<List<GameMode>> {
         String[] values = str.split(",");
         List<GameMode> modes = new ArrayList<>(values.length);
         for (String s : values) {
-            GameMode mode = GameMode.byName(s);
+            GameMode mode = null;
+            for (GameMode gm : GameMode.values()) {
+                if (gm.getId().equalsIgnoreCase(s.trim())) {
+                    mode = gm;
+                    break;
+                }
+            }
             if (mode != null) modes.add(mode);
         }
         return modes;
@@ -42,7 +48,7 @@ public class GameModeListSetting extends Setting<List<GameMode>> {
     public NbtCompound save(NbtCompound tag) {
         NbtList valueTag = new NbtList();
         for (GameMode mode : get()) {
-            valueTag.add(NbtString.of(mode.getName()));
+            valueTag.add(NbtString.of(mode.getId()));
         }
         tag.put("value", valueTag);
 
@@ -53,9 +59,16 @@ public class GameModeListSetting extends Setting<List<GameMode>> {
     public List<GameMode> load(NbtCompound tag) {
         get().clear();
 
-        NbtList valueTag = tag.getList("value", 8);
+        NbtList valueTag = tag.getListOrEmpty("value");
         for (NbtElement tagI : valueTag) {
-            GameMode mode = GameMode.byName(tagI.asString());
+            GameMode mode = null;
+            String id = tagI.asString().orElse("");
+            for (GameMode gm : GameMode.values()) {
+                if (gm.getId().equalsIgnoreCase(id)) {
+                    mode = gm;
+                    break;
+                }
+            }
             if (mode != null)
                 get().add(mode);
         }

@@ -2,7 +2,6 @@ package anticope.rejects.utils.accounts;
 
 import com.mojang.authlib.exceptions.AuthenticationException;
 import com.mojang.authlib.minecraft.MinecraftSessionService;
-import meteordevelopment.meteorclient.mixin.MinecraftClientAccessor;
 import meteordevelopment.meteorclient.systems.accounts.Account;
 import meteordevelopment.meteorclient.systems.accounts.AccountType;
 import meteordevelopment.meteorclient.utils.misc.NbtException;
@@ -37,9 +36,9 @@ public class CustomYggdrasilAccount extends Account<CustomYggdrasilAccount> {
     @Override
     public boolean login() {
         try {
-            CustomYggdrasilLogin.LocalYggdrasilAuthenticationService service = new CustomYggdrasilLogin.LocalYggdrasilAuthenticationService(((MinecraftClientAccessor) mc).getProxy(), server);
+            CustomYggdrasilLogin.LocalYggdrasilAuthenticationService service = new CustomYggdrasilLogin.LocalYggdrasilAuthenticationService(mc.getNetworkProxy(), server);
             MinecraftSessionService sessService = new CustomYggdrasilLogin.LocalYggdrasilMinecraftSessionService(service, service.server);
-            applyLoginEnvironment(service, sessService);
+            applyLoginEnvironment(service);
 
             Session session = CustomYggdrasilLogin.login(name, password, server);
             setSession(session);
@@ -66,8 +65,8 @@ public class CustomYggdrasilAccount extends Account<CustomYggdrasilAccount> {
         super.fromTag(tag);
         if (!tag.contains("password")) throw new NbtException();
 
-        password = tag.getString("password");
-        server = tag.getString("server");
+        password = tag.getString("password").orElse("");
+        server = tag.getString("server").orElse("");
 
         return this;
     }

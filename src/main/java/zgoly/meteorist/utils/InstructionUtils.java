@@ -2,7 +2,7 @@ package zgoly.meteorist.utils;
 
 import meteordevelopment.meteorclient.utils.misc.MeteorStarscript;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
-import meteordevelopment.starscript.Script;
+import org.meteordev.starscript.Script;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
@@ -27,16 +27,16 @@ public class InstructionUtils {
      */
     public static List<BaseInstruction> readInstructionsFromTag(NbtCompound tag, InstructionFactory factory) {
         List<BaseInstruction> instructions = new ArrayList<>();
-        NbtList list = tag.getList("instructions", NbtElement.COMPOUND_TYPE);
+        NbtList list = tag.getListOrEmpty("instructions");
 
         for (NbtElement tagII : list) {
             NbtCompound tagI = (NbtCompound) tagII;
-            String type = tagI.getString("type");
+            String type = tagI.getString("type").orElse("");
             BaseInstruction instruction = factory.createInstruction(type);
 
             if (instruction != null) {
-                NbtCompound instructionTag = tagI.getCompound("instruction");
-                if (instructionTag != null) instruction.fromTag(instructionTag);
+                NbtCompound instructionTag = tagI.getCompound("instruction").orElse(new NbtCompound());
+                if (!instructionTag.isEmpty()) instruction.fromTag(instructionTag);
                 instructions.add(instruction);
             }
         }

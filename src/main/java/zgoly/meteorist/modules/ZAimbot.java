@@ -13,9 +13,9 @@ import meteordevelopment.orbit.EventHandler;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.Tameable;
 import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.entity.mob.ZombifiedPiglinEntity;
+import net.minecraft.entity.passive.TameableEntity;
 import net.minecraft.entity.passive.WolfEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.MathHelper;
@@ -150,7 +150,7 @@ public class ZAimbot extends Module {
                 && !(ignoreBabies.get() && (e instanceof LivingEntity entity && entity.isBaby()))
                 && !(ignoreNamed.get() && e.hasCustomName())
                 && !(ignorePassive.get() && ((e instanceof EndermanEntity enderman && !enderman.isAngry()) || (e instanceof ZombifiedPiglinEntity piglin && !piglin.isAttacking()) || (e instanceof WolfEntity wolf && !wolf.isAttacking())))
-                && !(ignoreTamed.get() && (e instanceof Tameable tameable && tameable.getOwnerUuid() != null && tameable.getOwnerUuid().equals(mc.player.getUuid())))
+                && !(ignoreTamed.get() && (e instanceof TameableEntity tameable && tameable.getOwner() != null && tameable.getOwner().getUuid().equals(mc.player.getUuid())))
                 && !(ignoreFriends.get() && (e instanceof PlayerEntity player && !Friends.get().shouldAttack(player)))
                 && PlayerUtils.isWithin(e, range.get())
                 && (!useFovRange.get() || calculateFov(mc.player, e) <= fovRange.get())
@@ -163,13 +163,15 @@ public class ZAimbot extends Module {
 
     private float calculateFov(LivingEntity player, Entity target) {
         Vec3d lookDirection = player.getRotationVec(1.0F);
-        Vec3d targetDirection = target.getPos().subtract(player.getPos()).normalize();
+        Vec3d targetDirection = new Vec3d(target.getX(), target.getY(), target.getZ())
+            .subtract(new Vec3d(player.getX(), player.getY(), player.getZ()))
+            .normalize();
 
         return (float) Math.toDegrees(Math.acos(lookDirection.dotProduct(targetDirection)));
     }
 
     private void aim(LivingEntity player, Entity target) {
-        float targetYaw = (float) Rotations.getYaw(target.getPos().add(target.getVelocity().multiply(targetMovementPrediction.get())));
+        float targetYaw = (float) Rotations.getYaw(new Vec3d(target.getX(), target.getY(), target.getZ()).add(target.getVelocity().multiply(targetMovementPrediction.get())));
         float targetPitch = (float) Rotations.getPitch(target, bodyTarget.get());
 
         float yawDifference = MathHelper.wrapDegrees(targetYaw - player.getYaw());

@@ -12,6 +12,7 @@ import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.world.World;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,7 +37,7 @@ public class ObsidianFarm extends Module {
         if (mc.player == null) return;
         if (mc.world == null) return;
         if (mc.interactionManager == null) return;
-        if (mc.world.getDimension().respawnAnchorWorks()) {
+        if (mc.world.getRegistryKey() == World.NETHER) {
             allowBreakAgain = true;
             return;
         }
@@ -52,7 +53,7 @@ public class ObsidianFarm extends Module {
                     return;
                 }
             }
-            mc.player.getInventory().selectedSlot = pickAxe;
+            mc.player.getInventory().setSelectedSlot(pickAxe);
         }
 
         BlockPos obsidian = findObsidian();

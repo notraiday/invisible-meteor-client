@@ -12,6 +12,7 @@ import net.minecraft.block.Blocks;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 public class AntiSpawnpoint extends Module {
 
@@ -35,8 +36,8 @@ public class AntiSpawnpoint extends Module {
 
 
         BlockPos blockPos = ((PlayerInteractBlockC2SPacket) event.packet).getBlockHitResult().getBlockPos();
-        boolean IsOverWorld = mc.world.getDimension().bedWorks();
-        boolean IsNetherWorld = mc.world.getDimension().respawnAnchorWorks();
+        boolean IsOverWorld = mc.world.getRegistryKey() == World.OVERWORLD;
+        boolean IsNetherWorld = mc.world.getRegistryKey() == World.NETHER;
         boolean BlockIsBed = mc.world.getBlockState(blockPos).getBlock() instanceof BedBlock;
         boolean BlockIsAnchor = mc.world.getBlockState(blockPos).getBlock().equals(Blocks.RESPAWN_ANCHOR);
 

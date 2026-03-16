@@ -259,7 +259,7 @@ public class BoatControl extends Module {
     }
 
     private Box getBox(BoatEntity boat, Vector3d collisionOffset, Vector3d collisionSize) {
-        Vec3d offsetPos = boat.getPos().add(vectorToVec(collisionOffset).rotateY((float) -Math.toRadians(boat.getYaw() + 90)));
+        Vec3d offsetPos = new Vec3d(boat.getX(), boat.getY(), boat.getZ()).add(vectorToVec(collisionOffset).rotateY((float) -Math.toRadians(boat.getYaw() + 90)));
         Vec3d size = vectorToVec(collisionSize);
         return Box.of(offsetPos, size.x, size.y, size.z);
     }

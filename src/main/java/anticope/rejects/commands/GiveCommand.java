@@ -2,7 +2,6 @@ package anticope.rejects.commands;
 
 import anticope.rejects.arguments.EnumStringArgumentType;
 import anticope.rejects.utils.GiveUtils;
-import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import meteordevelopment.meteorclient.commands.Command;
@@ -10,7 +9,6 @@ import net.minecraft.command.CommandSource;
 import net.minecraft.component.ComponentChanges;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.NbtComponent;
-import net.minecraft.component.type.ProfileComponent;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -45,7 +43,7 @@ public class GiveCommand extends Command {
                 ct.putInt("Time", 1);
                 ct.putString("id", "minecraft:falling_block");
                 ct.put("BlockState", new NbtCompound());
-                ct.getCompound("BlockState").putString("Name", Registries.ITEM.getId(inHand.getItem()).toString());
+                ct.getCompound("BlockState").ifPresent(blockState -> blockState.putString("Name", Registries.ITEM.getId(inHand.getItem()).toString()));
 
             } else {
                 ct.putString("id", "minecraft:item");
@@ -88,7 +86,7 @@ public class GiveCommand extends Command {
 
             var changes = ComponentChanges.builder()
                     .add(DataComponentTypes.CUSTOM_NAME, Text.literal(message))
-                    .add(DataComponentTypes.ENTITY_DATA, NbtComponent.of(tag))
+                    .add(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag))
                     .build();
 
             stack.applyChanges(changes);
@@ -108,7 +106,7 @@ public class GiveCommand extends Command {
 
             var changes = ComponentChanges.builder()
                     .add(DataComponentTypes.CUSTOM_NAME, Text.literal(message))
-                    .add(DataComponentTypes.ENTITY_DATA, NbtComponent.of(tag))
+                    .add(DataComponentTypes.CUSTOM_DATA, NbtComponent.of(tag))
                     .build();
             stack.applyChanges(changes);
 
@@ -122,7 +120,7 @@ public class GiveCommand extends Command {
             ItemStack itemStack = new ItemStack(Items.PLAYER_HEAD);
 
             var changes = ComponentChanges.builder()
-                    .add(DataComponentTypes.PROFILE, new ProfileComponent(new GameProfile(getUUID(playerName), playerName)))
+                    .add(DataComponentTypes.CUSTOM_NAME, Text.literal(playerName + "'s Head"))
                     .build();
 
             itemStack.applyChanges(changes);

@@ -11,9 +11,6 @@ import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.fabricmc.loader.api.metadata.Person;
 
-import anticope.rejects.MeteorRejectsAddon;
-import zgoly.meteorist.Meteorist;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -92,18 +89,24 @@ public class AddonManager {
             ADDONS.add(addon);
         }
 
-        // fully simulate the rejects addon without actual mode
-        MeteorRejectsAddon rejects = new MeteorRejectsAddon();
-        rejects.name = "Meteor Rejects";
-        rejects.authors = new String[]{"AntiCope"};
-        ADDONS.add(rejects);
-
-        // fully simulate the meteorist addon without actual mode
-        Meteorist meteorist = new Meteorist();
-        meteorist.name = "Meteorist";
-        meteorist.authors = new String[]{"zgoly"};
-        ADDONS.add(meteorist);
+        // Optional fork addons: load only when their classes are present.
+        tryAddOptionalAddon("anticope.rejects.MeteorRejectsAddon", "Meteor Rejects", "AntiCope");
+        tryAddOptionalAddon("zgoly.meteorist.Meteorist", "Meteorist", "zgoly");
 
 
+    }
+
+    private static void tryAddOptionalAddon(String className, String name, String author) {
+        try {
+            Class<?> clazz = Class.forName(className);
+            if (!MeteorAddon.class.isAssignableFrom(clazz)) return;
+
+            MeteorAddon addon = (MeteorAddon) clazz.getDeclaredConstructor().newInstance();
+            addon.name = name;
+            addon.authors = new String[] { author };
+            ADDONS.add(addon);
+        } catch (Throwable ignored) {
+            // Addon classes may be excluded from this build target.
+        }
     }
 }

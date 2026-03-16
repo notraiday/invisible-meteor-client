@@ -2,32 +2,24 @@ package anticope.rejects.gui.screens;
 
 import anticope.rejects.mixin.EntityAccessor;
 import anticope.rejects.modules.InteractionMenu;
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
 import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.events.meteor.KeyEvent;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import meteordevelopment.meteorclient.utils.misc.MeteorStarscript;
 import meteordevelopment.meteorclient.utils.render.PeekScreen;
 import meteordevelopment.orbit.EventHandler;
-import meteordevelopment.starscript.compiler.Compiler;
-import meteordevelopment.starscript.compiler.Parser;
-import meteordevelopment.starscript.utils.Error;
-import meteordevelopment.starscript.utils.StarscriptError;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.ShaderProgramKeys;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.util.InputUtil;
-import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.Saddleable;
 import net.minecraft.entity.mob.EndermanEntity;
 import net.minecraft.entity.passive.AbstractHorseEntity;
 import net.minecraft.entity.player.PlayerEntity;
@@ -41,6 +33,10 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.MathHelper;
+import org.meteordev.starscript.compiler.Compiler;
+import org.meteordev.starscript.compiler.Parser;
+import org.meteordev.starscript.utils.Error;
+import org.meteordev.starscript.utils.StarscriptError;
 import org.joml.Vector2f;
 import org.lwjgl.glfw.GLFW;
 
@@ -166,7 +162,7 @@ public class InteractionScreen extends Screen {
                 var script = Compiler.compile(result);
                 try {
                     var section = MeteorStarscript.ss.run(script);
-                    client.setScreen(new ChatScreen(section.text));
+                    client.setScreen(new ChatScreen(section.text, true));
                 } catch (StarscriptError err) {
                     MeteorStarscript.printChatError(err);
                 }
@@ -187,26 +183,16 @@ public class InteractionScreen extends Screen {
             } catch (NullPointerException ex) {
             }
         }
-        if (e instanceof Saddleable) {
-            if (((Saddleable) e).isSaddled()) {
-                stack[index[0]] = Items.SADDLE.getDefaultStack();
-                index[0]++;
-            }
-        }
         LivingEntity a = (LivingEntity) e;
-        a.getHandItems().forEach(itemStack -> {
-            if (itemStack != null) {
-                stack[index[0]] = itemStack;
-                index[0]++;
-            }
-        });
+        ItemStack main = a.getEquippedStack(EquipmentSlot.MAINHAND);
+        ItemStack off = a.getEquippedStack(EquipmentSlot.OFFHAND);
+        if (!main.isEmpty()) stack[index[0]++] = main;
+        if (!off.isEmpty()) stack[index[0]++] = off;
 
-        a.getArmorItems().forEach(itemStack -> {
-            if (itemStack != null) {
-                stack[index[0]] = itemStack;
-                index[0]++;
-            }
-        });
+        for (EquipmentSlot slot : new EquipmentSlot[] { EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET }) {
+            ItemStack itemStack = a.getEquippedStack(slot);
+            if (!itemStack.isEmpty()) stack[index[0]++] = itemStack;
+        }
 
         for (int i = index[0]; i < 27; i++) stack[i] = Items.AIR.getDefaultStack();
         return stack;
@@ -223,7 +209,7 @@ public class InteractionScreen extends Screen {
         KeyBinding.unpressAll();
         double x = (double) this.client.getWindow().getWidth() / 2;
         double y = (double) this.client.getWindow().getHeight() / 2;
-        InputUtil.setCursorParameters(this.client.getWindow().getHandle(), mode, x, y);
+        InputUtil.setCursorParameters(this.client.getWindow(), mode, x, y);
     }
 
     public void tick() {
@@ -249,18 +235,11 @@ public class InteractionScreen extends Screen {
     }
 
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        MatrixStack matrix = context.getMatrices();
-        // Fake crosshair stuff
-        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
-        RenderSystem.setShader(ShaderProgramKeys.POSITION_TEX);
-        RenderSystem.enableBlend();
-        RenderSystem.blendFuncSeparate(GlStateManager.SrcFactor.ONE_MINUS_DST_COLOR,
-                GlStateManager.DstFactor.ONE_MINUS_SRC_COLOR, GlStateManager.SrcFactor.ONE,
-                GlStateManager.DstFactor.ZERO);
-        context.drawTexture(RenderLayer::getGuiTextured, GUI_ICONS_TEXTURE,  crosshairX - 8, crosshairY - 8, 0, 0, 15, 15, 256, 256);
+        // Fake crosshair.
+        context.drawTexture(RenderPipelines.GUI_TEXTURED, GUI_ICONS_TEXTURE, crosshairX - 8, crosshairY - 8, 0, 0, 15, 15, 256, 256);
 
         drawDots(context, (int) (Math.min(height, width) / 2 * 0.75), mouseX, mouseY);
-        matrix.scale(2f, 2f, 1f);
+        context.getMatrices().scale(2f, 2f);
         context.drawCenteredTextWithShadow(textRenderer, entity.getName(), width / 4, 6, 0xFFFFFFFF);
 
         Vector2f mouse = getMouseVecs(mouseX, mouseY);
@@ -362,7 +341,7 @@ public class InteractionScreen extends Screen {
     private class StaticListener {
         @EventHandler
         private void onKey(KeyEvent event) {
-            if (client.options.sneakKey.matchesKey(event.key, 0) || client.options.sneakKey.matchesMouse(event.key)) {
+            if (client.options.sneakKey.matchesKey(event.input)) {
                 client.setCameraEntity(client.player);
                 event.cancel();
                 MeteorClient.EVENT_BUS.unsubscribe(this);

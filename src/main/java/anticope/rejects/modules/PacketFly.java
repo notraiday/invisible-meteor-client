@@ -8,7 +8,6 @@ import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.entity.player.PlayerPosition;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.c2s.play.TeleportConfirmC2SPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
@@ -127,8 +126,9 @@ public class PacketFly extends Module {
         mc.player.setVelocity(0.0,0.0,0.0);
         double speed = 0.0;
         boolean checkCollisionBoxes = checkHitBoxes();
+        boolean movingHorizontally = mc.player.input.getMovementInput().x != 0.0f || mc.player.input.getMovementInput().y != 0.0f;
 
-        speed = mc.player.input.playerInput.jump() && (checkCollisionBoxes || !(mc.player.input.movementForward != 0.0 || mc.player.input.movementSideways != 0.0)) ? (antiKick.get() && !checkCollisionBoxes ? (resetCounter(downDelayFlying.get()) ? -0.032 : verticalSpeed.get()/20) : verticalSpeed.get()/20) : (mc.player.input.playerInput.sneak() ? verticalSpeed.get()/-20 : (!checkCollisionBoxes ? (resetCounter(downDelay.get()) ? (antiKick.get() ? -0.04 : 0.0) : 0.0) : 0.0));
+        speed = mc.player.input.playerInput.jump() && (checkCollisionBoxes || !movingHorizontally) ? (antiKick.get() && !checkCollisionBoxes ? (resetCounter(downDelayFlying.get()) ? -0.032 : verticalSpeed.get()/20) : verticalSpeed.get()/20) : (mc.player.input.playerInput.sneak() ? verticalSpeed.get()/-20 : (!checkCollisionBoxes ? (resetCounter(downDelay.get()) ? (antiKick.get() ? -0.04 : 0.0) : 0.0) : 0.0));
 
         Vec3d horizontal = PlayerUtils.getHorizontalVelocity(horizontalSpeed.get());
 
@@ -154,14 +154,9 @@ public class PacketFly extends Module {
     public void onPacketReceive(PacketEvent.Receive event) {
         if (event.packet instanceof PlayerPositionLookS2CPacket && !(mc.player == null || mc.world == null)) {
             PlayerPositionLookS2CPacket packet = (PlayerPositionLookS2CPacket) event.packet;
-            PlayerPosition oldPos = packet.change();
             if (setYaw.get()) {
-                PlayerPosition newPos = new PlayerPosition(oldPos.position(), oldPos.deltaMovement(), mc.player.getYaw(), mc.player.getPitch());
-                event.packet = PlayerPositionLookS2CPacket.of(
-                        packet.teleportId(),
-                        newPos,
-                        packet.relatives()
-                );
+                mc.player.setYaw(mc.player.getYaw());
+                mc.player.setPitch(mc.player.getPitch());
             }
             if (setID.get()) {
                 teleportID = packet.teleportId();
@@ -183,7 +178,7 @@ public class PacketFly extends Module {
 
     private void sendPackets(double x, double y, double z, boolean teleport) {
         Vec3d vec = new Vec3d(x, y, z);
-        Vec3d position = mc.player.getPos().add(vec);
+        Vec3d position = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()).add(vec);
         Vec3d outOfBoundsVec = outOfBoundsVec(vec, position);
         packetSender(new PlayerMoveC2SPacket.PositionAndOnGround(position.x, position.y, position.z, mc.player.isOnGround(), mc.player.horizontalCollision));
         if (invalidPacket.get()) {

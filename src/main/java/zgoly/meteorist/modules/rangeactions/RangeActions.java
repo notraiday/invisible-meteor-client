@@ -72,16 +72,16 @@ public class RangeActions extends Module {
 
         rangeActions.clear();
 
-        NbtList list = tag.getList("rangeActions", NbtElement.COMPOUND_TYPE);
+        NbtList list = tag.getListOrEmpty("rangeActions");
 
         for (NbtElement tagII : list) {
             NbtCompound tagI = (NbtCompound) tagII;
-            String type = tagI.getString("type");
+            String type = tagI.getString("type").orElse("");
             BaseRangeAction rangeAction = factory.createRangeAction(type);
 
             if (rangeAction != null) {
-                NbtCompound rangeActionTag = tagI.getCompound("rangeAction");
-                if (rangeActionTag != null) rangeAction.fromTag(rangeActionTag);
+                NbtCompound rangeActionTag = tagI.getCompound("rangeAction").orElse(new NbtCompound());
+                if (!rangeActionTag.isEmpty()) rangeAction.fromTag(rangeActionTag);
                 rangeActions.add(rangeAction);
             }
         }
@@ -193,7 +193,7 @@ public class RangeActions extends Module {
                     continue;
                 if (rangeAction.ignoreNamed.get() && entity.hasCustomName()) continue;
                 if (rangeAction.ignorePassive.get() && isPassive(entity)) continue;
-                if (rangeAction.ignoreTamed.get() && entity instanceof TameableEntity && ((TameableEntity) entity).getOwnerUuid() != null && ((TameableEntity) entity).getOwnerUuid().equals(mc.player.getUuid()))
+                if (rangeAction.ignoreTamed.get() && entity instanceof TameableEntity tameableEntity && tameableEntity.getOwner() != null && tameableEntity.getOwner().getUuid().equals(mc.player.getUuid()))
                     continue;
 
                 double distance = mc.player.distanceTo(entity);

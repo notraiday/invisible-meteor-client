@@ -135,8 +135,8 @@ public class AutoSneak extends Module {
     }
 
     private Box calcBox() {
-        Vec3d pos = mc.player.getPos().add(mc.player.getVelocity().multiply(playerPosPrediction.get()));
-        pos = new Vec3d(pos.x, mc.player.getPos().y, pos.z);
+        Vec3d pos = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()).add(mc.player.getVelocity().multiply(playerPosPrediction.get()));
+        pos = new Vec3d(pos.x, mc.player.getY(), pos.z);
         return new Box(
                 pos.getX() + (width.get() / 2), pos.getY(), pos.getZ() + (width.get() / 2),
                 pos.getX() - (width.get() / 2), pos.getY() - height.get(), pos.getZ() - (width.get() / 2)

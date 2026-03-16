@@ -262,7 +262,7 @@ public class ItemSucker extends Module {
                     || (itemFilteringMode.get() == OperationMode.Whitelist && itemWhitelist.get().contains(itemEntity.getStack().getItem()));
             boolean canTeleport = true;
             if (moveMode.get() == MoveMode.Teleport) {
-                canTeleport = checkCollisions.get() && canTeleportToItem(itemEntity.getPos());
+                canTeleport = checkCollisions.get() && canTeleportToItem(new Vec3d(itemEntity.getX(), itemEntity.getY(), itemEntity.getZ()));
             }
 
             return isPickupable && isWithinRange && isOnGround && isItemAllowed && canTeleport;
@@ -302,7 +302,7 @@ public class ItemSucker extends Module {
             if (target != null) {
                 if (tpToOrigin.get()) {
                     if (resetTimeAfterTp.get()) timer = waitTime.get();
-                    if (startPos == null) startPos = mc.player.getPos();
+                    if (startPos == null) startPos = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
                 }
                 mc.player.setPosition(target.getX(), target.getY(), target.getZ());
             }
@@ -339,7 +339,7 @@ public class ItemSucker extends Module {
         if (moveMode.get() == MoveMode.Teleport) {
             List<Entity> entities = new ArrayList<>();
             TargetUtils.getList(entities, this::filter, SortPriority.LowestDistance, maxItemsAtOnce.get());
-            entities.forEach(entity -> event.renderer.box(getBoundingBoxAtPosition(entity.getPos()), sideColor.get(), lineColor.get(), ShapeMode.Both, 0));
+            entities.forEach(entity -> event.renderer.box(getBoundingBoxAtPosition(new Vec3d(entity.getX(), entity.getY(), entity.getZ())), sideColor.get(), lineColor.get(), ShapeMode.Both, 0));
         }
     }
 

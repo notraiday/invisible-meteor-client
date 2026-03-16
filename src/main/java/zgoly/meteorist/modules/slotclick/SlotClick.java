@@ -86,17 +86,17 @@ public class SlotClick extends Module {
         super.fromTag(tag);
 
         slotSelections.clear();
-        NbtList list = tag.getList("slotSelections", NbtElement.COMPOUND_TYPE);
+        NbtList list = tag.getListOrEmpty("slotSelections");
 
         for (NbtElement tagII : list) {
             NbtCompound tagI = (NbtCompound) tagII;
 
-            String type = tagI.getString("type");
+            String type = tagI.getString("type").orElse("");
             BaseSlotSelection slotSelection = factory.createSelection(type);
 
             if (slotSelection != null) {
-                NbtCompound slotSelectionTag = tagI.getCompound("slotSelection");
-                if (slotSelectionTag != null) slotSelection.fromTag(slotSelectionTag);
+                NbtCompound slotSelectionTag = tagI.getCompound("slotSelection").orElse(new NbtCompound());
+                if (!slotSelectionTag.isEmpty()) slotSelection.fromTag(slotSelectionTag);
 
                 slotSelections.add(slotSelection);
             }
@@ -334,15 +334,16 @@ public class SlotClick extends Module {
                             try {
                                 ItemStack itemStack = screenHandler.getSlot(slot).getStack();
                                 if (!itemStack.isEmpty()) {
-                                    NbtElement element = itemStack.toNbt(mc.player.getRegistryManager());
-                                    printInfo("Item data: " + element.asString());
+                                    NbtElement element = new NbtCompound();
+                                    ((NbtCompound) element).putString("item", itemStack.getItem().toString());
+                                    printInfo("Item data: " + element.asString().orElse(""));
 
                                     boolean matchedAny = false;
                                     boolean matchedAll = true;
 
                                     for (Pair<String, String> pair : defaultSlotSelection.slotItemData.get()) {
                                         try {
-                                            String value = NbtPathArgumentType.NbtPath.parse(pair.getLeft()).get(element).getFirst().asString();
+                                            String value = NbtPathArgumentType.NbtPath.parse(pair.getLeft()).get(element).getFirst().asString().orElse("");
                                             Pattern pattern = Pattern.compile(pair.getRight());
                                             printInfo("Element: " + value);
                                             printInfo("Pattern: " + pattern.pattern());

@@ -15,6 +15,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import zgoly.meteorist.Meteorist;
 
 import java.util.Objects;
@@ -95,7 +96,7 @@ public class AutoSleep extends Module {
     @EventHandler
     private void onTick(TickEvent.Post event) {
         if (mc.world == null) return;
-        if (dimensionRestrict.get() && !mc.world.getDimension().natural()) return;
+        if (dimensionRestrict.get() && mc.world.getRegistryKey() != World.OVERWORLD) return;
 
         if (mc.player.isSleeping()) {
             if (useMaxSleepTime.get()) {

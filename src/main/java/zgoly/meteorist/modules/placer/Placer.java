@@ -160,14 +160,13 @@ public class Placer extends Module {
         super.fromTag(tag);
 
         placers.clear();
-        NbtList list = tag.getList("placers", NbtElement.COMPOUND_TYPE);
+        NbtList list = tag.getListOrEmpty("placers");
         for (NbtElement tagII : list) {
             NbtCompound tagI = (NbtCompound) tagII;
 
             BasePlacer placer = new BasePlacer();
-            NbtCompound placerTag = tagI.getCompound("placer");
-
-            if (placerTag != null) placer.fromTag(placerTag);
+            NbtCompound placerTag = tagI.getCompound("placer").orElse(new NbtCompound());
+            if (!placerTag.isEmpty()) placer.fromTag(placerTag);
 
             placer.settings.registerColorSettings(null);
             placers.add(placer);

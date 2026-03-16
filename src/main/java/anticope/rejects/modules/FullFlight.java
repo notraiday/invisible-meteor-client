@@ -5,8 +5,6 @@ import anticope.rejects.utils.RejectsUtils;
 import com.google.common.collect.Streams;
 import meteordevelopment.meteorclient.events.entity.player.PlayerMoveEvent;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
-import meteordevelopment.meteorclient.mixin.ClientPlayerEntityAccessor;
-import meteordevelopment.meteorclient.mixin.PlayerMoveC2SPacketAccessor;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
@@ -64,7 +62,7 @@ public class FullFlight extends Module {
 
     // Copied from ServerPlayNetworkHandler#isEntityOnAir
     private boolean isEntityOnAir(Entity entity) {
-        return entity.getWorld().getStatesInBox(entity.getBoundingBox().expand(0.0625).stretch(0.0, -0.55, 0.0)).allMatch(AbstractBlock.AbstractBlockState::isAir);
+        return mc.world.getStatesInBox(entity.getBoundingBox().expand(0.0625).stretch(0.0, -0.55, 0.0)).allMatch(AbstractBlock.AbstractBlockState::isAir);
     }
 
     private int delayLeft = 20;
@@ -80,9 +78,6 @@ public class FullFlight extends Module {
         // maximum time we can be "floating" is 80 ticks, so 4 seconds max
         if (this.delayLeft <= 0 && this.lastPacketY != Double.MAX_VALUE &&
                 shouldFlyDown(currentY, this.lastPacketY) && isEntityOnAir(mc.player)) {
-            // actual check is for >= -0.03125D, but we have to do a bit more than that
-            // due to the fact that it's a bigger or *equal* to, and not just a bigger than
-            ((PlayerMoveC2SPacketAccessor) packet).setY(lastPacketY - 0.03130D);
             lastPacketY -= 0.03130D;
             delayLeft = 20;
         } else {
@@ -134,10 +129,6 @@ public class FullFlight extends Module {
 
     @EventHandler
     private void onPlayerMove(PlayerMoveEvent event) {
-        if (antiKickMode.get() == AntiKickMode.PaperNew) {
-            // Resend movement packets
-            ((ClientPlayerEntityAccessor) mc.player).setTicksSinceLastPositionPacketSent(20);
-        }
         if (floatingTicks >= 20) {
             switch (antiKickMode.get()) {
                 case New -> {

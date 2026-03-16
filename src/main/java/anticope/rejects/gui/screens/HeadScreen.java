@@ -21,6 +21,7 @@ import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.text.Text;
+import net.minecraft.entity.EquipmentSlot;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -98,7 +99,7 @@ public class HeadScreen extends WindowScreen {
                 WButton equip = t.add(theme.button("Equip")).widget();
                 equip.tooltip = "Equip client-side.";
                 equip.action = () -> {
-                    mc.player.getInventory().armor.set(3, head);
+                    mc.player.equipStack(EquipmentSlot.HEAD, head.copy());
                 };
                 t.row();
             }
@@ -111,7 +112,7 @@ public class HeadScreen extends WindowScreen {
         ItemStack head = Items.PLAYER_HEAD.getDefaultStack();
         NbtCompound tag = new NbtCompound();
         NbtCompound skullOwner = new NbtCompound();
-        skullOwner.putUuid("Id", UUID.fromString(uuid));
+        skullOwner.putString("Id", uuid);
         NbtCompound properties = new NbtCompound();
         NbtList textures = new NbtList();
         NbtCompound Value = new NbtCompound();

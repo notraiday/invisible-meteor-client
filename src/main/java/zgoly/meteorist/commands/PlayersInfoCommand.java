@@ -67,7 +67,7 @@ public class PlayersInfoCommand extends Command {
         info.append(String.join(",", properties.isEmpty() ? PlayerPropertiesArgumentType.PROPERTIES : properties)).append("\n");
         if (mc.getNetworkHandler() != null) {
             List<PlayerListEntry> sortedPlayerList = mc.getNetworkHandler().getPlayerList().stream()
-                    .sorted((p1, p2) -> p1.getProfile().getName().compareToIgnoreCase(p2.getProfile().getName()))
+                    .sorted((p1, p2) -> p1.getProfile().name().compareToIgnoreCase(p2.getProfile().name()))
                     .toList();
             for (PlayerListEntry player : sortedPlayerList) {
                 info.append(String.join(",", getProperties(player, properties))).append("\n");
@@ -81,10 +81,10 @@ public class PlayersInfoCommand extends Command {
         List<String> finalString = new ArrayList<>();
         for (String property : properties) {
             switch (property.toLowerCase()) {
-                case "player" -> finalString.add(player.getProfile().getName());
-                case "uuid" -> finalString.add(String.valueOf(player.getProfile().getId()));
+                case "player" -> finalString.add(player.getProfile().name());
+                case "uuid" -> finalString.add(String.valueOf(player.getProfile().id()));
                 case "gamemode" -> finalString.add(String.valueOf(player.getGameMode()));
-                case "skin_url" -> finalString.add(player.getSkinTextures().textureUrl());
+                case "skin_url" -> finalString.add(player.getSkinTextures().toString());
                 case "latency" -> finalString.add(String.valueOf(player.getLatency()));
             }
         }

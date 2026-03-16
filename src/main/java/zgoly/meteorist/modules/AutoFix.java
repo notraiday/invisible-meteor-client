@@ -5,6 +5,7 @@ import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
 import meteordevelopment.orbit.EventHandler;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import zgoly.meteorist.Meteorist;
 
@@ -64,7 +65,9 @@ public class AutoFix extends Module {
         boolean work = false;
 
         if (timer >= delay.get()) {
-            for (ItemStack item : mc.player.getArmorItems()) {
+            for (EquipmentSlot slot : EquipmentSlot.values()) {
+                if (!slot.isArmorSlot()) continue;
+                ItemStack item = mc.player.getEquippedStack(slot);
                 if (item.getDamage() > 0 && item.getMaxDamage() > 0) {
                     if ((mode.get() == Mode.Default && item.getMaxDamage() - item.getDamage() >= minDurability.get()) ||
                             (mode.get() == Mode.Percentage && (((item.getMaxDamage() - item.getDamage()) * 100) / item.getMaxDamage()) >= minDurabilityPercentage.get())) {

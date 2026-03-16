@@ -1,6 +1,7 @@
 package anticope.rejects.modules;
 
 import anticope.rejects.MeteorRejectsAddon;
+import meteordevelopment.meteorclient.mixin.EntityVelocityUpdateS2CPacketAccessor;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.Setting;
@@ -52,8 +53,9 @@ public class AntiCrash extends Module {
                 cancel(event);
         } else if (event.packet instanceof EntityVelocityUpdateS2CPacket packet) {
             // velocity
-            if (packet.getVelocityX() > 30_000_000 || packet.getVelocityY() > 30_000_000 || packet.getVelocityZ() > 30_000_000
-                    || packet.getVelocityX() < -30_000_000 || packet.getVelocityY() < -30_000_000 || packet.getVelocityZ() < -30_000_000
+            Vec3d velocity = ((EntityVelocityUpdateS2CPacketAccessor) packet).meteor$getVelocity();
+            if (velocity.x > 30_000_000 || velocity.y > 30_000_000 || velocity.z > 30_000_000
+                    || velocity.x < -30_000_000 || velocity.y < -30_000_000 || velocity.z < -30_000_000
             ) cancel(event);
         }
     }

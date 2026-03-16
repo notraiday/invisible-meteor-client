@@ -77,28 +77,6 @@ public abstract class MultiplayerScreenMixin extends Screen {
         proxies.setPosition(this.width - 75 - 3 - 75 - 2, 3);
     }
 
-    @Inject(method = "render", at = @At("TAIL"))
-    private void onRender(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!Modules.get().get(MultiplayerTabAddons.class).isActive()) {
-            return;
-        }
-        int x = 3;
-        int y = 3;
-
-        // Logged in as
-        context.drawTextWithShadow(mc.textRenderer, loggedInAs, x, y, textColor1);
-        context.drawTextWithShadow(mc.textRenderer, Modules.get().get(NameProtect.class).getName(client.getSession().getUsername()), x + loggedInAsLength, y, textColor2);
-
-        y += textRenderer.fontHeight + 2;
-
-        // Proxy
-        Proxy proxy = Proxies.get().getEnabled();
-
-        String left = proxy != null ? "Using proxy " : "Not using a proxy";
-        String right = proxy != null ? (proxy.name.get() != null && !proxy.name.get().isEmpty() ? "(" + proxy.name.get() + ") " : "") + proxy.address.get() + ":" + proxy.port.get() : null;
-
-        context.drawTextWithShadow(mc.textRenderer, left, x, y, textColor1);
-        if (right != null)
-            context.drawTextWithShadow(mc.textRenderer, right, x + textRenderer.getWidth(left), y, textColor2);
-    }
+    // No render inject here: MultiplayerScreen no longer has a stable render override target
+    // across the updated mappings. Keep only widget-position hook to avoid startup crashes.
 }

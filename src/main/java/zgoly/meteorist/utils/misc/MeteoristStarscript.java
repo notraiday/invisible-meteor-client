@@ -5,8 +5,8 @@ import meteordevelopment.meteorclient.systems.modules.movement.NoFall;
 import meteordevelopment.meteorclient.utils.entity.DamageUtils;
 import meteordevelopment.meteorclient.utils.entity.EntityUtils;
 import meteordevelopment.meteorclient.utils.misc.MeteorStarscript;
-import meteordevelopment.starscript.value.Value;
-import meteordevelopment.starscript.value.ValueMap;
+import org.meteordev.starscript.value.Value;
+import org.meteordev.starscript.value.ValueMap;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
@@ -29,7 +29,7 @@ public class MeteoristStarscript {
     private static double getDistance(boolean max) {
         if (mc.player == null || mc.world == null) return 0;
 
-        double startY = mc.player.getPos().getY();
+        double startY = mc.player.getY();
         if (mc.player.isOnGround()) {
             maxStartY = startY;
             return 0;
@@ -37,7 +37,7 @@ public class MeteoristStarscript {
 
         if (startY > maxStartY) maxStartY = startY;
 
-        Vec3d start = mc.player.getPos();
+        Vec3d start = new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ());
         if (max) start = new Vec3d(start.x, maxStartY, start.z);
 
         BlockHitResult blockHitResult = mc.world.raycast(new RaycastContext(

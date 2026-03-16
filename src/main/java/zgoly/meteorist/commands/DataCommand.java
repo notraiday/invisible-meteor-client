@@ -43,10 +43,14 @@ public class DataCommand extends Command {
     }
 
     public int getEntityData(Entity entity, boolean copy) {
-        // NBT entity text
-        NbtCompound nbt = entity.writeNbt(new NbtCompound());
+        NbtCompound nbt = new NbtCompound();
+        nbt.putString("id", entity.getType().toString());
+        nbt.putString("name", entity.getName().getString());
+        nbt.putDouble("x", entity.getX());
+        nbt.putDouble("y", entity.getY());
+        nbt.putDouble("z", entity.getZ());
         if (copy) {
-            mc.keyboard.setClipboard(nbt.asString());
+            mc.keyboard.setClipboard(nbt.asString().orElse(""));
             info("Entity data was copied to your clipboard");
         } else {
             info(Text.literal("Entity data: ").append(NbtHelper.toPrettyPrintedText(nbt)));
@@ -83,7 +87,7 @@ public class DataCommand extends Command {
                 // NBT block entity text
                 NbtCompound nbt = blockEntity.createNbtWithIdentifyingData(mc.world.getRegistryManager());
                 if (copy) {
-                    mc.keyboard.setClipboard(nbt.asString());
+                    mc.keyboard.setClipboard(nbt.asString().orElse(""));
                     info("Block data was copied to your clipboard");
                 } else {
                     info(Text.literal("Block data: ").append(NbtHelper.toPrettyPrintedText(nbt)));
@@ -104,7 +108,7 @@ public class DataCommand extends Command {
             // NBT block states text
             NbtCompound nbt = NbtHelper.fromBlockState(blockState);
             if (copy) {
-                mc.keyboard.setClipboard(nbt.asString());
+                mc.keyboard.setClipboard(nbt.asString().orElse(""));
                 info("Block states were copied to your clipboard");
             } else {
                 info(Text.literal("Block states: ").append(NbtHelper.toPrettyPrintedText(nbt)));
