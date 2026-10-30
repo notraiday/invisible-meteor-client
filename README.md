@@ -19,7 +19,7 @@
 
 ## Changes
 - Removed Meteor Client's keybindings from the keybinds menu
-- Default keybind changed to F13(I'm using ahk to create some sophisticated keystoke)
+- Default GUI keybind changed to Ctrl+Shift+Insert
 - Moved config to .minecraft/config/mvo76
 - Disabled some logs(It's still recomended to set .minecraft/logs to read-only)
 - Added MultiplayerTabAddons module to disable Meteor Client's buttons in the multiplayer screen
