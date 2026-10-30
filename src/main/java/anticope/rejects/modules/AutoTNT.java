@@ -11,17 +11,17 @@ import meteordevelopment.meteorclient.utils.misc.Pool;
 import meteordevelopment.meteorclient.utils.player.FindItemResult;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
+import meteordevelopment.meteorclient.utils.player.Rotations;
 import meteordevelopment.meteorclient.utils.world.BlockIterator;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.TntBlock;
-import net.minecraft.item.FireChargeItem;
-import net.minecraft.item.FlintAndSteelItem;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
-
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.FireChargeItem;
+import net.minecraft.world.item.FlintAndSteelItem;
+import net.minecraft.world.level.block.TntBlock;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -30,7 +30,6 @@ public class AutoTNT extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     // General
-
     private final Setting<Boolean> ignite = sgGeneral.add(new BoolSetting.Builder()
             .name("ignite")
             .description("Whether to ignite tnt.")
@@ -68,6 +67,17 @@ public class AutoTNT extends Module {
             .build()
     );
 
+    private final Setting<Integer> durability = sgGeneral.add(new IntSetting.Builder()
+            .name("durability")
+            .description("Decides the amount of durability to leave on the flint and steel")
+            .min(1)
+            .max(63)
+            .sliderMax(63)
+            .defaultValue(10)
+            .visible(antiBreak::get)
+            .build()
+    );
+
     private final Setting<Boolean> fireCharge = sgGeneral.add(new BoolSetting.Builder()
             .name("fire-charge")
             .description("Whether to also use fire charges.")
@@ -83,8 +93,8 @@ public class AutoTNT extends Module {
             .build()
     );
 
-    private final List<BlockPos.Mutable> blocksToIgnite = new ArrayList<>();
-    private final Pool<BlockPos.Mutable> ignitePool = new Pool<>(BlockPos.Mutable::new);
+    private final List<BlockPos.MutableBlockPos> blocksToIgnite = new ArrayList<>();
+    private final Pool<BlockPos.MutableBlockPos> ignitePool = new Pool<>(BlockPos.MutableBlockPos::new);
     private int igniteTick = 0;
 
     public AutoTNT() {
@@ -100,7 +110,7 @@ public class AutoTNT extends Module {
     private void onPreTick(TickEvent.Pre event) {
         if (ignite.get() && igniteTick > igniteDelay.get()) {
             // Clear blocks
-            for (BlockPos.Mutable blockPos : blocksToIgnite) ignitePool.free(blockPos);
+            for (BlockPos.MutableBlockPos blockPos : blocksToIgnite) ignitePool.free(blockPos);
             blocksToIgnite.clear();
 
             // Register
@@ -121,7 +131,7 @@ public class AutoTNT extends Module {
                 // Ignition
                 FindItemResult itemResult = InvUtils.findInHotbar(item -> {
                     if (item.getItem() instanceof FlintAndSteelItem) {
-                        return (antiBreak.get() && (item.getMaxDamage() - item.getDamage()) > 10);
+                        return !antiBreak.get() || (item.getMaxDamage() - item.getDamageValue()) > durability.get();
                     }
                     else if (item.getItem() instanceof FireChargeItem) {
                         return fireCharge.get();
@@ -129,7 +139,7 @@ public class AutoTNT extends Module {
                     return false;
                 });
                 if (!itemResult.found()) {
-                    error("No flint and steel in hotbar");
+                    error("No flint and steel in hotbar or durability too low.");
                     toggle();
                     return;
                 }
@@ -143,10 +153,13 @@ public class AutoTNT extends Module {
     }
 
     private void ignite(BlockPos pos, FindItemResult item) {
-        InvUtils.swap(item.slot(), true);
-
-        mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, new BlockHitResult(new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5), Direction.UP, pos, true));
-
-        InvUtils.swapBack();
+        Runnable action = () -> {
+            InvUtils.swap(item.slot(), true);
+            mc.gameMode.useItemOn(mc.player, InteractionHand.MAIN_HAND, new BlockHitResult(new Vec3(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5), Direction.UP, pos, true));
+            InvUtils.swapBack();
+        };
+        // rotation is very snappy and only for the interaction, TODO improve in future
+        if (rotate.get()) Rotations.rotate(Rotations.getYaw(pos), Rotations.getPitch(pos), action);
+        else action.run();
     }
 }

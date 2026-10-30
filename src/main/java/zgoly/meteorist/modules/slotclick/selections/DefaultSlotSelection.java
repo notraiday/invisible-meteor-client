@@ -1,9 +1,8 @@
 package zgoly.meteorist.modules.slotclick.selections;
 
+import meteordevelopment.meteorclient.gui.utils.StarscriptTextBoxRenderer;
 import meteordevelopment.meteorclient.settings.*;
-import net.minecraft.screen.ScreenHandlerType;
-import net.minecraft.util.Pair;
-import zgoly.meteorist.settings.StringPairSetting;
+import net.minecraft.world.inventory.MenuType;
 
 import java.util.Arrays;
 import java.util.List;
@@ -17,10 +16,10 @@ public class DefaultSlotSelection extends BaseSlotSelection {
             .defaultValue(false)
             .build()
     );
-    public final Setting<List<ScreenHandlerType<?>>> containerType = sgGeneral.add(new ScreenHandlerListSetting.Builder()
+    public final Setting<List<MenuType<?>>> containerType = sgGeneral.add(new ScreenHandlerListSetting.Builder()
             .name("container-type")
             .description("Determines the type of containers that can be interacted with.")
-            .defaultValue(Arrays.asList(ScreenHandlerType.GENERIC_9X3, ScreenHandlerType.GENERIC_9X6))
+            .defaultValue(Arrays.asList(MenuType.GENERIC_9x3, MenuType.GENERIC_9x6))
             .visible(checkContainerType::get)
             .build()
     );
@@ -56,28 +55,16 @@ public class DefaultSlotSelection extends BaseSlotSelection {
             .defaultValue(false)
             .build()
     );
-    public final Setting<List<Pair<String, String>>> slotItemData = sgGeneral.add(new StringPairSetting.Builder()
-            .name("slot-item-data")
-            .description("Checks data of the slot item.")
-            .placeholder(new Pair<>("Path", "RegEx"))
-            .defaultValue(List.of(new Pair<>("", "")))
-            .visible(checkSlotItemData::get)
-            .build()
-    );
-    public final Setting<SlotItemMatchMode> slotItemMatchMode = sgGeneral.add(new EnumSetting.Builder<SlotItemMatchMode>()
-            .name("slot-item-match-mode")
-            .description("Determines how the slot item data should be matched.")
-            .defaultValue(SlotItemMatchMode.All)
+    public final Setting<String> slotItemDataExpression = sgGeneral.add(new StringSetting.Builder()
+            .name("slot-item-data-expression")
+            .description("Starscript expression for the slot item; wrap in {braces} and produce true/false.")
+            .defaultValue("{true}")
+            .renderer(StarscriptTextBoxRenderer.class)
             .visible(checkSlotItemData::get)
             .build()
     );
 
     public DefaultSlotSelection() {
-    }
-
-    public enum SlotItemMatchMode {
-        All,
-        Any
     }
 
     public enum ContainerTypeMode {

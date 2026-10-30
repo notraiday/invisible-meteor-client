@@ -3,7 +3,7 @@ package anticope.rejects.modules;
 import anticope.rejects.MeteorRejectsAddon;
 import anticope.rejects.events.OffGroundSpeedEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
-import meteordevelopment.meteorclient.mixininterface.IVec3d;
+import meteordevelopment.meteorclient.mixininterface.IVec3;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
@@ -28,14 +28,14 @@ public class Jetpack extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
-        if (mc.options.jumpKey.isPressed()) {
-            ((IVec3d) mc.player.getVelocity()).meteor$setY(jetpackSpeed.get());
+        if (mc.options.keyJump.isDown()) {
+            ((IVec3) mc.player.getDeltaMovement()).meteor$setY(jetpackSpeed.get());
         }
     }
 
     @EventHandler
     private void onOffGroundSpeed(OffGroundSpeedEvent event) {
-        event.speed = mc.player.getMovementSpeed() * jetpackSpeed.get().floatValue();
+        event.speed = mc.player.getSpeed() * jetpackSpeed.get().floatValue();
     }
 }
 

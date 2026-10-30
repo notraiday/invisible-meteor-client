@@ -57,18 +57,18 @@ public class NotebotSongsScreen extends WindowScreen {
 
     private void initSongsTable() {
         AtomicBoolean noSongsFound = new AtomicBoolean(true);
-        try {
-            Files.list(MeteorClient.FOLDER.toPath().resolve("notebot")).forEach(path -> {
+        try (var songs = Files.list(MeteorClient.FOLDER.toPath().resolve("notebot"))) {
+            songs.forEach(path -> {
                 if (SongDecoders.hasDecoder(path)) {
                     String name = path.getFileName().toString();
 
-                    if (Utils.searchTextDefault(name, filterText, false)){
+                    if (Utils.searchTextDefault(name, filterText, false)) {
                         addPath(path);
                         noSongsFound.set(false);
                     }
                 }
             });
-        } catch (IOException e) {
+        } catch (IOException _) {
             table.add(theme.label("Missing meteor-client/notebot folder.")).expandCellX();
             table.row();
         }

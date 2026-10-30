@@ -14,11 +14,12 @@ import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
+import meteordevelopment.meteorclient.utils.player.SlotUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.enchantment.Enchantments;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantments;
 
 import java.util.List;
 
@@ -28,7 +29,8 @@ public class AutoMend extends Module {
     private final Setting<List<Item>> blacklist = sgGeneral.add(new ItemListSetting.Builder()
         .name("blacklist")
         .description("Item blacklist.")
-        .filter(item -> item.getComponents().get(DataComponentTypes.DAMAGE) != null)
+        .filter(item -> item.components().get(DataComponents.DAMAGE) != null)
+        .bypassFilterWhenSavingAndLoading()                                                        
         .build()
     );
 
@@ -81,35 +83,22 @@ public class AutoMend extends Module {
     }
 
     private boolean shouldWait() {
-        ItemStack itemStack = mc.player.getOffHandStack();
+        ItemStack itemStack = mc.player.getOffhandItem();
 
         if (itemStack.isEmpty()) return false;
 
         if (Utils.hasEnchantments(itemStack, Enchantments.MENDING)) {
-            return itemStack.getDamage() != 0;
+            return itemStack.getDamageValue() != 0;
         }
 
         return !force.get();
     }
 
     private int getSlot() {
-        for (int i = 0; i < mc.player.getInventory().getMainStacks().size(); i++) {
-            ItemStack itemStack = mc.player.getInventory().getStack(i);
-            if (blacklist.get().contains(itemStack.getItem())) continue;
-
-            if (Utils.hasEnchantments(itemStack, Enchantments.MENDING) && itemStack.getDamage() > 0) {
-                return i;
-            }
-        }
-
-        return -1;
+        return InvUtils.find(itemStack -> !blacklist.get().contains(itemStack.getItem()) && Utils.hasEnchantments(itemStack, Enchantments.MENDING) && itemStack.getDamageValue() > 0, SlotUtils.HOTBAR_START, SlotUtils.MAIN_END).slot();
     }
 
     private int getEmptySlot() {
-        for (int i = 0; i < mc.player.getInventory().getMainStacks().size(); i++) {
-            if (mc.player.getInventory().getStack(i).isEmpty()) return i;
-        }
-
-        return -1;
+        return InvUtils.find(ItemStack::isEmpty, SlotUtils.HOTBAR_START, SlotUtils.MAIN_END).slot();
     }
 }

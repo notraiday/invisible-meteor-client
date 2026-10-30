@@ -4,7 +4,7 @@ import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.IntSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.world.inventory.ContainerInput;
 
 public class SingleSlotSelection extends DefaultSlotSelection {
     public static final String type = "Single";
@@ -15,13 +15,13 @@ public class SingleSlotSelection extends DefaultSlotSelection {
             .name("slot")
             .description("Slot to select.")
             .min(0)
-            .onChanged(value -> reloadParent())
+            .onChanged(_ -> reloadParent())
             .build()
     );
-    public final Setting<SlotActionType> action = sgSingleSlotSelection.add(new EnumSetting.Builder<SlotActionType>()
+    public final Setting<ContainerInput> action = sgSingleSlotSelection.add(new EnumSetting.Builder<ContainerInput>()
             .name("action")
             .description("Action to perform.")
-            .defaultValue(SlotActionType.PICKUP)
+            .defaultValue(ContainerInput.PICKUP)
             .build()
     );
     public final Setting<Integer> button = sgSingleSlotSelection.add(new IntSetting.Builder()

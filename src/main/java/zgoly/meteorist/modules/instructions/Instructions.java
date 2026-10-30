@@ -1,6 +1,5 @@
 package zgoly.meteorist.modules.instructions;
 
-import meteordevelopment.meteorclient.events.game.GameJoinedEvent;
 import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.gui.GuiTheme;
 import meteordevelopment.meteorclient.gui.widgets.WWidget;
@@ -9,13 +8,10 @@ import meteordevelopment.meteorclient.gui.widgets.containers.WTable;
 import meteordevelopment.meteorclient.gui.widgets.containers.WVerticalList;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WButton;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WMinus;
-import meteordevelopment.meteorclient.settings.BoolSetting;
-import meteordevelopment.meteorclient.settings.Setting;
-import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import zgoly.meteorist.Meteorist;
 import zgoly.meteorist.modules.instructions.instructions.BaseInstruction;
 import zgoly.meteorist.modules.instructions.instructions.CommandInstruction;
@@ -28,18 +24,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static zgoly.meteorist.Meteorist.*;
+import static meteordevelopment.meteorclient.gui.renderer.GuiRenderer.COPY;
+import static zgoly.meteorist.Meteorist.ARROW_DOWN;
+import static zgoly.meteorist.Meteorist.ARROW_UP;
 
 public class Instructions extends Module {
-    public final SettingGroup sgDebug = settings.createGroup("Debug");
-
-    public final Setting<Boolean> printDebugInfo = sgDebug.add(new BoolSetting.Builder()
-            .name("print-debug-info")
-            .description("Logs debug information to the chat. Not intended for the module, but for the command.")
-            .defaultValue(false)
-            .build()
-    );
-
     public static List<BaseInstruction> instructions = new ArrayList<>();
     private final InstructionFactory factory = new InstructionFactory();
     private int startTick = -1;
@@ -48,12 +37,12 @@ public class Instructions extends Module {
         super(Meteorist.CATEGORY, "instructions", "Runs commands with different delays and number of cycles. Supports Starscript.");
     }
 
-    public NbtCompound toTag() {
-        NbtCompound tag = super.toTag();
+    public CompoundTag toTag() {
+        CompoundTag tag = super.toTag();
 
-        NbtList list = new NbtList();
+        ListTag list = new ListTag();
         for (BaseInstruction instruction : instructions) {
-            NbtCompound mTag = new NbtCompound();
+            CompoundTag mTag = new CompoundTag();
             mTag.putString("type", instruction.getTypeName());
             mTag.put("instruction", instruction.toTag());
 
@@ -63,7 +52,7 @@ public class Instructions extends Module {
         return tag;
     }
 
-    public Module fromTag(NbtCompound tag) {
+    public Module fromTag(CompoundTag tag) {
         super.fromTag(tag);
 
         instructions.clear();
@@ -86,10 +75,13 @@ public class Instructions extends Module {
             list.add(theme.settings(instruction.settings)).expandX();
 
             WContainer container = list.add(theme.horizontalList()).expandX().widget();
+
             if (instructions.size() > 1) {
+                WContainer moveContainer = container.add(theme.horizontalList()).expandX().widget();
                 int index = instructions.indexOf(instruction);
+
                 if (index > 0) {
-                    WButton moveUp = container.add(theme.button(ARROW_UP)).widget();
+                    WButton moveUp = moveContainer.add(theme.button(ARROW_UP)).widget();
                     moveUp.tooltip = "Move instruction up.";
                     moveUp.action = () -> {
                         instructions.remove(index);
@@ -99,7 +91,7 @@ public class Instructions extends Module {
                 }
 
                 if (index < instructions.size() - 1) {
-                    WButton moveDown = container.add(theme.button(ARROW_DOWN)).widget();
+                    WButton moveDown = moveContainer.add(theme.button(ARROW_DOWN)).widget();
                     moveDown.tooltip = "Move instruction down.";
                     moveDown.action = () -> {
                         instructions.remove(index);
@@ -124,7 +116,8 @@ public class Instructions extends Module {
             };
         }
 
-        list.add(theme.horizontalSeparator()).expandX();
+        if (!instructions.isEmpty()) list.add(theme.horizontalSeparator()).expandX();
+
         WTable controls = list.add(theme.table()).expandX().widget();
 
         WButton createCommand = controls.add(theme.button("New Command")).expandX().widget();
@@ -150,18 +143,14 @@ public class Instructions extends Module {
         MeteoristConfigManager.configManager(theme, list, this);
     }
 
-    @EventHandler
-    private void onGameJoined(GameJoinedEvent event) {
-        startTick = -1;
-    }
-
-    public void onDeactivate() {
+    public void onActivate() {
         startTick = -1;
     }
 
     @EventHandler
     public void onTick(TickEvent.Post event) {
-        int currentTick = (int) mc.world.getTime();
+        if (mc.level == null) return;
+        int currentTick = (int) mc.level.getGameTime();
         if (startTick == -1) startTick = currentTick;
 
         Map<Integer, List<String>> map = new HashMap<>();
@@ -170,6 +159,5 @@ public class Instructions extends Module {
         InstructionUtils.executeCommands(map, currentTick, startTick);
 
         if (startTick + lastTick <= currentTick) startTick = -1;
-
     }
 }

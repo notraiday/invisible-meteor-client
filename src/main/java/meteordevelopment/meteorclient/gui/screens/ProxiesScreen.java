@@ -19,15 +19,10 @@ import meteordevelopment.meteorclient.gui.widgets.pressable.WMinus;
 import meteordevelopment.meteorclient.settings.Settings;
 import meteordevelopment.meteorclient.systems.proxies.Proxies;
 import meteordevelopment.meteorclient.systems.proxies.Proxy;
+import meteordevelopment.meteorclient.utils.misc.FileDialogs;
 import meteordevelopment.meteorclient.utils.misc.NbtUtils;
 import meteordevelopment.meteorclient.utils.network.MeteorExecutor;
-import org.lwjgl.BufferUtils;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.MemoryUtil;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
-import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -57,24 +52,11 @@ public class ProxiesScreen extends WindowScreen {
 
         // New
         WButton newBtn = l.add(theme.button("New")).expandX().widget();
-        newBtn.action = () -> mc.setScreen(new EditProxyScreen(theme, null, this::reload));
+        newBtn.action = () -> mc.gui.setScreen(new EditProxyScreen(theme, null, this::reload));
 
         // Import
-        PointerBuffer filters = BufferUtils.createPointerBuffer(1);
-
-        ByteBuffer txtFilter = MemoryUtil.memASCII("*.txt");
-
-        filters.put(txtFilter);
-        filters.rewind();
-
         WButton importBtn = l.add(theme.button("Import")).expandX().widget();
-        importBtn.action = () -> {
-            String selectedFile = TinyFileDialogs.tinyfd_openFileDialog("Import Proxies", null, filters, null, false);
-            if (selectedFile != null) {
-                File file = new File(selectedFile);
-                mc.setScreen(new ProxiesImportScreen(theme, file));
-            }
-        };
+        importBtn.action = () -> FileDialogs.openFile("txt", file -> mc.gui.setScreen(new ProxiesImportScreen(theme, file)));
 
         l.add(refreshButton).expandX();
         refreshButton.action = () -> Proxies.get().checkProxies(true);
@@ -87,7 +69,7 @@ public class ProxiesScreen extends WindowScreen {
         };
 
         WButton configButton = l.add(theme.button(GuiRenderer.EDIT)).widget();
-        configButton.action = () -> mc.setScreen(new ConfigScreen(theme));
+        configButton.action = () -> mc.gui.setScreen(new ConfigScreen(theme));
         configButton.tooltip = "Proxies Config";
     }
 
@@ -130,7 +112,7 @@ public class ProxiesScreen extends WindowScreen {
             refresh.tooltip = "Refresh";
 
             WButton edit = table.add(theme.button(GuiRenderer.EDIT)).widget();
-            edit.action = () -> mc.setScreen(new EditProxyScreen(theme, proxy, this::reload));
+            edit.action = () -> mc.gui.setScreen(new EditProxyScreen(theme, proxy, this::reload));
 
             WMinus remove = table.add(theme.minus()).widget();
             remove.action = () -> {
@@ -151,10 +133,8 @@ public class ProxiesScreen extends WindowScreen {
             if (timer > 2) {
                 refreshButton.set(getNext(refreshButton));
                 timer = 0;
-            }
-            else timer++;
-        }
-        else {
+            } else timer++;
+        } else {
             if (!refreshButton.getText().equals("Refresh")) {
                 refreshButton.set("Refresh");
             }
@@ -163,7 +143,7 @@ public class ProxiesScreen extends WindowScreen {
             }
         }
 
-        for (Map.Entry<Proxy, WLabel> entry : statuses.entrySet()) {
+        for (var entry : statuses.entrySet()) {
             Proxy proxy = entry.getKey();
             WLabel label = entry.getValue();
 

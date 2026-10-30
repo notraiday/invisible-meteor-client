@@ -15,13 +15,13 @@ import meteordevelopment.meteorclient.systems.modules.Category;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
-import net.minecraft.item.Items;
+import net.minecraft.world.item.Items;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.slf4j.helpers.NOPLogger;
 
 public class MeteorRejectsAddon extends MeteorAddon {
-    public static final Logger LOG = LoggerFactory.getLogger("NOP");
-    public static final Category CATEGORY = new Category("Rejects", Items.BARRIER.getDefaultStack());
+    public static final Logger LOG = NOPLogger.NOP_LOGGER;
+    public static final Category CATEGORY = new Category("Rejects", () -> Items.BARRIER.getDefaultInstance());
     public static final HudGroup HUD_GROUP = new HudGroup("Rejects");
 
     @Override
@@ -34,6 +34,7 @@ public class MeteorRejectsAddon extends MeteorAddon {
         modules.add(new AntiSpawnpoint());
         modules.add(new AntiVanish());
         modules.add(new ArrowDmg());
+        modules.add(new AutoDrop());
         modules.add(new AutoBedTrap());
         modules.add(new AutoCraft());
         modules.add(new AutoExtinguish());
@@ -56,6 +57,7 @@ public class MeteorRejectsAddon extends MeteorAddon {
         modules.add(new Confuse());
         modules.add(new CoordLogger());
         modules.add(new CustomPackets());
+        modules.add(new DebugRender());
         modules.add(new ExtraElytra());
         modules.add(new FullFlight());
         modules.add(new GamemodeNotifier());
@@ -71,8 +73,7 @@ public class MeteorRejectsAddon extends MeteorAddon {
         modules.add(new NewChunks());
         modules.add(new NoJumpDelay());
         modules.add(new ObsidianFarm());
-        // Present in upstream but not in this embedded tree:
-        // modules.add(new OreSim());
+        // Seed-based features (OreSim, .locate, .seed) are not baked in: they need the seedfinding/cubiomes libs
         modules.add(new PacketFly());
         modules.add(new Painter());
         modules.add(new Rendering());
@@ -89,18 +90,15 @@ public class MeteorRejectsAddon extends MeteorAddon {
         // Commands
         Commands.add(new CenterCommand());
         Commands.add(new ClearChatCommand());
+        Commands.add(new FillCommand());
         Commands.add(new GhostCommand());
         Commands.add(new GiveCommand());
         Commands.add(new HeadsCommand());
         Commands.add(new KickCommand());
-        // Present in upstream but not in this embedded tree:
-        // Commands.add(new LocateCommand());
         Commands.add(new PanicCommand());
         Commands.add(new ReconnectCommand());
         Commands.add(new ServerCommand());
         Commands.add(new SaveSkinCommand());
-        // Present in upstream but not in this embedded tree:
-        // Commands.add(new SeedCommand());
         Commands.add(new SetBlockCommand());
         Commands.add(new SetVelocityCommand());
         Commands.add(new TeleportCommand());
@@ -131,8 +129,7 @@ public class MeteorRejectsAddon extends MeteorAddon {
 
     @Override
     public String getCommit() {
-        // When this addon is embedded/baked into another client, "meteor-rejects"
-        // may not exist as a standalone mod container.
+        // Baked into the client, so there is no standalone "meteor-rejects" mod container
         ModContainer container = FabricLoader.getInstance().getModContainer("meteor-rejects").orElse(null);
         if (container == null) return null;
 

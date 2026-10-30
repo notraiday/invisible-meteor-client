@@ -20,16 +20,17 @@ import meteordevelopment.meteorclient.utils.Utils;
 import meteordevelopment.meteorclient.utils.entity.DamageUtils;
 import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityStatuses;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket;
-import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Colors;
-import net.minecraft.util.Formatting;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.protocol.common.ClientboundDisconnectPacket;
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
+import net.minecraft.util.CommonColors;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityEvent;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.player.Player;
 
 import java.util.Set;
 
@@ -50,6 +51,7 @@ public class AutoLog extends Module {
         .name("predict-incoming-damage")
         .description("Disconnects when it detects you're about to take enough damage to set you under the 'health' setting.")
         .defaultValue(true)
+        .visible(() -> health.get() > 0)
         .build()
     );
 
@@ -79,6 +81,7 @@ public class AutoLog extends Module {
         .name("smart-toggle")
         .description("Disables Auto Log after a low-health logout. WILL re-enable once you heal.")
         .defaultValue(false)
+        .visible(() -> health.get() > 0)
         .build()
     );
 
@@ -101,7 +104,7 @@ public class AutoLog extends Module {
     private final Setting<Set<EntityType<?>>> entities = sgEntities.add(new EntityTypeListSetting.Builder()
         .name("entities")
         .description("Disconnects when a specified entity is present within a specified range.")
-        .defaultValue(EntityType.END_CRYSTAL)
+        .defaultValue(EntityTypes.END_CRYSTAL)
         .build()
     );
 
@@ -158,10 +161,10 @@ public class AutoLog extends Module {
 
     @EventHandler
     private void onReceivePacket(PacketEvent.Receive event) {
-        if (!(event.packet instanceof EntityStatusS2CPacket p)) return;
-        if (p.getStatus() != EntityStatuses.USE_TOTEM_OF_UNDYING) return;
+        if (!(event.packet instanceof ClientboundEntityEventPacket p)) return;
+        if (p.getEventId() != EntityEvent.PROTECTED_FROM_DEATH) return;
 
-        Entity entity = p.getEntity(mc.world);
+        Entity entity = p.getEntity(mc.level);
         if (entity == null || !entity.equals(mc.player)) return;
 
         pops++;
@@ -178,28 +181,31 @@ public class AutoLog extends Module {
             this.toggle();
             return;
         }
-        if (playerHealth <= health.get()) {
-            disconnect("Health was lower than " + health.get() + ".");
-            if (smartToggle.get()) {
-                if (isActive()) this.toggle();
-                enableHealthListener();
-            } else if (toggleOff.get()) this.toggle();
-            return;
-        }
 
-        if (smart.get() && playerHealth + mc.player.getAbsorptionAmount() - PlayerUtils.possibleHealthReductions() < health.get()) {
-            disconnect("Health was going to be lower than " + health.get() + ".");
-            if (toggleOff.get()) this.toggle();
-            return;
+        if (health.get() > 0) {
+            if (playerHealth <= health.get()) {
+                disconnect("Health was lower than " + health.get() + ".");
+                if (smartToggle.get()) {
+                    if (isActive()) this.toggle();
+                    enableHealthListener();
+                } else if (toggleOff.get()) this.toggle();
+                return;
+            }
+
+            if (smart.get() && playerHealth + mc.player.getAbsorptionAmount() - PlayerUtils.possibleHealthReductions() < health.get()) {
+                disconnect("Health was going to be lower than " + health.get() + ".");
+                if (toggleOff.get()) this.toggle();
+                return;
+            }
         }
 
         if (!onlyTrusted.get() && !instantDeath.get() && entities.get().isEmpty())
             return; // only check all entities if needed
 
-        for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof PlayerEntity player && player.getUuid() != mc.player.getUuid()) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
+            if (entity instanceof Player player && player.getUUID() != mc.player.getUUID()) {
                 if (onlyTrusted.get() && player != mc.player && !Friends.get().isFriend(player)) {
-                    disconnect(Text.literal("Non-trusted player '" + Formatting.RED + player.getName().getString() + Formatting.WHITE + "' appeared in your render distance."));
+                    disconnect(Component.literal("Non-trusted player '" + ChatFormatting.RED + player.getName().getString() + ChatFormatting.WHITE + "' appeared in your render distance."));
                     if (toggleOff.get()) this.toggle();
                     return;
                 }
@@ -220,7 +226,7 @@ public class AutoLog extends Module {
             entityCounts.clear();
 
             // Iterate through all entities in the world and count the ones that match the selected types and are within range
-            for (Entity entity : mc.world.getEntities()) {
+            for (Entity entity : mc.level.entitiesForRendering()) {
                 if (PlayerUtils.isWithin(entity, range.get()) && entities.get().contains(entity.getType())) {
                     totalEntities++;
                     if (!useTotalCount.get()) {
@@ -232,12 +238,11 @@ public class AutoLog extends Module {
             if (useTotalCount.get() && totalEntities >= combinedEntityThreshold.get()) {
                 disconnect("Total number of selected entities within range exceeded the limit.");
                 if (toggleOff.get()) this.toggle();
-            }
-            else if (!useTotalCount.get()) {
+            } else if (!useTotalCount.get()) {
                 // Check if the count of each entity type exceeds the specified limit
                 for (Object2IntMap.Entry<EntityType<?>> entry : entityCounts.object2IntEntrySet()) {
                     if (entry.getIntValue() >= individualEntityThreshold.get()) {
-                        disconnect("Number of " + entry.getKey().getName().getString() + " within range exceeded the limit.");
+                        disconnect("Number of " + entry.getKey().getDescription().getString() + " within range exceeded the limit.");
                         if (toggleOff.get()) this.toggle();
                         return;
                     }
@@ -247,29 +252,29 @@ public class AutoLog extends Module {
     }
 
     private void disconnect(String reason) {
-        disconnect(Text.literal(reason));
+        disconnect(Component.literal(reason));
     }
 
-    private void disconnect(Text reason) {
-        MutableText text = Text.literal("[AutoLog] ");
+    private void disconnect(Component reason) {
+        MutableComponent text = Component.literal("[AutoLog] ");
         text.append(reason);
 
         AutoReconnect autoReconnect = Modules.get().get(AutoReconnect.class);
         if (autoReconnect.isActive() && toggleAutoReconnect.get()) {
-            text.append(Text.literal("\n\nINFO - AutoReconnect was disabled").withColor(Colors.GRAY));
+            text.append(Component.literal("\n\nINFO - AutoReconnect was disabled").withColor(CommonColors.GRAY));
             autoReconnect.toggle();
         }
 
-        mc.player.networkHandler.onDisconnect(new DisconnectS2CPacket(text));
+        mc.player.connection.handleDisconnect(new ClientboundDisconnectPacket(text));
     }
 
     private class StaticListener {
         @EventHandler
         private void healthListener(TickEvent.Post event) {
-            if (isActive()) disableHealthListener();
+            if (isActive() || health.get() <= 0) disableHealthListener();
 
             else if (Utils.canUpdate()
-                && !mc.player.isDead()
+                && !mc.player.isDeadOrDying()
                 && mc.player.getHealth() > health.get()) {
                 info("Player health greater than minimum, re-enabling module.");
                 toggle();

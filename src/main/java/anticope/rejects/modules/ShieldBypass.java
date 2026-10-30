@@ -12,16 +12,16 @@ import meteordevelopment.meteorclient.systems.modules.combat.KillAura;
 import meteordevelopment.meteorclient.utils.misc.input.KeyAction;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.item.AxeItem;
-import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.network.protocol.game.ServerboundAttackPacket;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundPunchPacket;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.Vec3;
 
-import static org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT;
+import static com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT;
 
 public class ShieldBypass extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -40,35 +40,37 @@ public class ShieldBypass extends Module {
     @EventHandler
     private void onMouseButton(MouseClickEvent event) {
         if (Modules.get().isActive(KillAura.class)) return;
-        if (mc.currentScreen == null && !mc.player.isUsingItem() && event.action == KeyAction.Press && event.button() == GLFW_MOUSE_BUTTON_LEFT) {
-            if (mc.crosshairTarget instanceof EntityHitResult result) {
+        if (mc.gui.screen() == null && !mc.player.isUsingItem() && event.action == KeyAction.Press && event.button() == MOUSE_BUTTON_LEFT) {
+            if (mc.hitResult instanceof EntityHitResult result) {
                 bypass(result.getEntity(), event);
             }
         }
     }
 
-    private boolean isBlocked(Vec3d pos, LivingEntity target) {
-        Vec3d targetPos = new Vec3d(target.getX(), target.getY(), target.getZ());
-        Vec3d vec3d3 = pos.relativize(targetPos).normalize();
-        return new Vec3d(vec3d3.x, 0.0d, vec3d3.z).dotProduct(target.getRotationVec(1.0f)) >= 0.0d;
+    private boolean isBlocked(Vec3 pos, LivingEntity target) {
+        Vec3 targetPos = new Vec3(target.getX(), target.getY(), target.getZ());
+        Vec3 vec3d3 = pos.vectorTo(targetPos).normalize();
+        return new Vec3(vec3d3.x, 0.0d, vec3d3.z).dot(target.getViewVector(1.0f)) >= 0.0d;
     }
 
     public void bypass(Entity target, Cancellable event) {
         if (target instanceof LivingEntity e && e.isBlocking()) {
-            if (ignoreAxe.get() && InvUtils.testInMainHand(i -> i.getItem() instanceof AxeItem)) return;
+            if (ignoreAxe.get() && InvUtils.testInMainHand(i -> i.is(ItemTags.AXES))) return;
 
             // Shield check
-            if (isBlocked(new Vec3d(mc.player.getX(), mc.player.getY(), mc.player.getZ()), e)) return;
+            Vec3 playerPos = new Vec3(mc.player.getX(), mc.player.getY(), mc.player.getZ());
+            if (isBlocked(playerPos, e)) return;
 
-            Vec3d offset = Vec3d.fromPolar(0, mc.player.getYaw()).normalize().multiply(2);
-            Vec3d newPos = new Vec3d(e.getX(), e.getY(), e.getZ()).add(offset);
+            Vec3 offset = Vec3.directionFromRotation(0, mc.player.getYRot()).normalize().scale(2);
+            Vec3 ePos = new Vec3(e.getX(), e.getY(), e.getZ());
+            Vec3 newPos = ePos.add(offset);
 
             // Move up to prevent tping into blocks
             boolean inside = false;
             for (float i = 0; i < 4; i += 0.25) {
-                Vec3d targetPos = newPos.add(0, i, 0);
+                Vec3 targetPos = newPos.add(0, i, 0);
 
-                boolean collides = !mc.world.isSpaceEmpty(null, e.getBoundingBox().offset(offset).offset(targetPos.subtract(newPos)));
+                boolean collides = !mc.level.noCollision(null, e.getBoundingBox().move(offset).move(targetPos.subtract(newPos)));
 
                 if (!inside && collides) {
                     inside = true;
@@ -82,12 +84,13 @@ public class ShieldBypass extends Module {
 
             event.cancel();
 
-            mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(newPos.getX(), newPos.getY(), newPos.getZ(), true, false));
+            mc.getConnection().send(new ServerboundMovePlayerPacket.Pos(newPos.x(), newPos.y(), newPos.z(), true, false));
 
-            mc.getNetworkHandler().sendPacket(PlayerInteractEntityC2SPacket.attack(e, mc.player.isSneaking()));
-            mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(mc.player.getActiveHand()));
+            mc.getConnection().send(new ServerboundAttackPacket(e.getId()));
+            mc.getConnection().send(new ServerboundPunchPacket());
+            mc.player.resetOnlyAttackStrengthTicker();
 
-            mc.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.PositionAndOnGround(mc.player.getX(), mc.player.getY(), mc.player.getZ(), true, mc.player.horizontalCollision));
+            mc.getConnection().send(new ServerboundMovePlayerPacket.Pos(mc.player.getX(), mc.player.getY(), mc.player.getZ(), true, mc.player.horizontalCollision));
         }
     }
 }

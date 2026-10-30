@@ -3,12 +3,17 @@ package zgoly.meteorist.commands;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import meteordevelopment.meteorclient.commands.Command;
-import net.minecraft.client.network.PlayerListEntry;
-import net.minecraft.command.CommandSource;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.multiplayer.ClientSuggestionProvider;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.core.ClientAsset;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import zgoly.meteorist.commands.arguments.PlayerPropertiesArgumentType;
+import zgoly.meteorist.utils.SdlFileDialog;
 
 import java.io.FileOutputStream;
 import java.util.ArrayList;
@@ -20,7 +25,7 @@ public class PlayersInfoCommand extends Command {
     }
 
     @Override
-    public void build(LiteralArgumentBuilder<CommandSource> builder) {
+    public void build(LiteralArgumentBuilder<ClientSuggestionProvider> builder) {
         builder.then(literal("copy")
                 .executes(this::copyPlayersInfo)
                 .then(argument("properties", PlayerPropertiesArgumentType.create()).executes(this::copyPlayersInfo)));
@@ -29,32 +34,37 @@ public class PlayersInfoCommand extends Command {
                 .then(argument("properties", PlayerPropertiesArgumentType.create()).executes(this::savePlayersInfo)));
     }
 
-    private int savePlayersInfo(CommandContext<CommandSource> context) {
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            PointerBuffer filterBuffer = stack.mallocPointer(1);
-            filterBuffer.put(stack.UTF8("*.csv"));
-            filterBuffer.flip();
-            String result = TinyFileDialogs.tinyfd_saveFileDialog("Save Players Info", "players_info.csv", filterBuffer, "CSV File (*.csv)");
-            if (result != null) {
-                try {
-                    FileOutputStream outputStream = new FileOutputStream(result);
-                    outputStream.write(getPlayersInfo(context).getBytes());
-                    outputStream.close();
-                    info("Players info was saved to (highlight)%s(default)", result);
-                } catch (Exception ignored) {
-                }
+    private int savePlayersInfo(CommandContext<ClientSuggestionProvider> context) {
+        String playersInfo = getPlayersInfo(context);
+
+        SdlFileDialog.save("players_info.csv", "CSV File", "csv", path -> {
+            try (FileOutputStream outputStream = new FileOutputStream(path)) {
+                outputStream.write(playersInfo.getBytes());
+                info(savedMessage(path));
+            } catch (Exception e) {
             }
-        }
+        });
+
         return SINGLE_SUCCESS;
     }
 
-    private int copyPlayersInfo(CommandContext<CommandSource> context) {
-        mc.keyboard.setClipboard(getPlayersInfo(context));
+    private Component savedMessage(String path) {
+        Style style = Style.EMPTY
+                .applyFormats(ChatFormatting.WHITE, ChatFormatting.UNDERLINE)
+                .withClickEvent(new ClickEvent.OpenFile(path))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Open file").withStyle(ChatFormatting.GRAY)));
+
+        MutableComponent file = Component.literal(path).withStyle(style);
+        return Component.literal("Players info was saved to ").withStyle(ChatFormatting.GRAY).append(file);
+    }
+
+    private int copyPlayersInfo(CommandContext<ClientSuggestionProvider> context) {
+        mc.keyboardHandler.setClipboard(getPlayersInfo(context));
         info("Players info was copied to clipboard");
         return SINGLE_SUCCESS;
     }
 
-    private String getPlayersInfo(CommandContext<CommandSource> context) {
+    private String getPlayersInfo(CommandContext<ClientSuggestionProvider> context) {
         List<String> properties;
 
         try {
@@ -65,11 +75,11 @@ public class PlayersInfoCommand extends Command {
 
         StringBuilder info = new StringBuilder();
         info.append(String.join(",", properties.isEmpty() ? PlayerPropertiesArgumentType.PROPERTIES : properties)).append("\n");
-        if (mc.getNetworkHandler() != null) {
-            List<PlayerListEntry> sortedPlayerList = mc.getNetworkHandler().getPlayerList().stream()
+        if (mc.getConnection() != null) {
+            List<PlayerInfo> sortedPlayerList = mc.getConnection().getOnlinePlayers().stream()
                     .sorted((p1, p2) -> p1.getProfile().name().compareToIgnoreCase(p2.getProfile().name()))
                     .toList();
-            for (PlayerListEntry player : sortedPlayerList) {
+            for (PlayerInfo player : sortedPlayerList) {
                 info.append(String.join(",", getProperties(player, properties))).append("\n");
             }
         }
@@ -77,14 +87,17 @@ public class PlayersInfoCommand extends Command {
         return info.toString();
     }
 
-    private List<String> getProperties(PlayerListEntry player, List<String> properties) {
+    private List<String> getProperties(PlayerInfo player, List<String> properties) {
         List<String> finalString = new ArrayList<>();
         for (String property : properties) {
             switch (property.toLowerCase()) {
                 case "player" -> finalString.add(player.getProfile().name());
                 case "uuid" -> finalString.add(String.valueOf(player.getProfile().id()));
                 case "gamemode" -> finalString.add(String.valueOf(player.getGameMode()));
-                case "skin_url" -> finalString.add(player.getSkinTextures().toString());
+                case "skin_url" -> {
+                    String string2 = player.getSkin().body() instanceof ClientAsset.DownloadedTexture skinAssetInfo ? skinAssetInfo.url() : null;
+                    finalString.add(string2 == null ? "" : string2);
+                }
                 case "latency" -> finalString.add(String.valueOf(player.getLatency()));
             }
         }

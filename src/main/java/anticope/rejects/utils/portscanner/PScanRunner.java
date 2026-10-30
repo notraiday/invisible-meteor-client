@@ -31,7 +31,7 @@ public class PScanRunner {
             for (Future<PortScannerManager.ScanResult> fsc : futures) {
                 try {
                     results.add(fsc.get());
-                } catch (InterruptedException | ExecutionException ignored) {
+                } catch (InterruptedException | ExecutionException e) {
                 }
             }
             callback.accept(results);

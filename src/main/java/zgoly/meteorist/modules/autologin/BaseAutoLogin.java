@@ -2,16 +2,17 @@ package zgoly.meteorist.modules.autologin;
 
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.utils.misc.ISerializable;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.CompoundTag;
 
 public class BaseAutoLogin implements ISerializable<BaseAutoLogin> {
     Settings settings = new Settings();
 
     SettingGroup sgAutoLogin = settings.createGroup("Auto Login");
 
-    public final Setting<String> passwordCommand = sgAutoLogin.add(new StringSetting.Builder()
+    public final Setting<String> loginCommand = sgAutoLogin.add(new StringSetting.Builder()
             .name("login-command")
             .description("Command to login.")
+            .placeholder("/login 12345678")
             .build()
     );
     public final Setting<ExecutionMode> executionMode = sgAutoLogin.add(new EnumSetting.Builder<ExecutionMode>()
@@ -31,11 +32,13 @@ public class BaseAutoLogin implements ISerializable<BaseAutoLogin> {
     public final Setting<String> usernameFilter = sgAutoLogin.add(new StringSetting.Builder()
             .name("username-filter")
             .description("Username to check when logging in. Leave it empty if you don't need it.")
+            .placeholder("Keep empty to skip")
             .build()
     );
     public final Setting<String> serverIpFilter = sgAutoLogin.add(new StringSetting.Builder()
             .name("server-ip-filter")
             .description("Server IP to check when logging in. Leave it empty if you don't need it.")
+            .placeholder("Keep empty to skip")
             .build()
     );
     public final Setting<Boolean> lastLogin = sgAutoLogin.add(new BoolSetting.Builder()
@@ -45,16 +48,16 @@ public class BaseAutoLogin implements ISerializable<BaseAutoLogin> {
     );
 
     @Override
-    public NbtCompound toTag() {
-        NbtCompound tag = new NbtCompound();
+    public CompoundTag toTag() {
+        CompoundTag tag = new CompoundTag();
         tag.put("settings", settings.toTag());
 
         return tag;
     }
 
     @Override
-    public BaseAutoLogin fromTag(NbtCompound tag) {
-        NbtCompound settingsTag = (NbtCompound) tag.get("settings");
+    public BaseAutoLogin fromTag(CompoundTag tag) {
+        CompoundTag settingsTag = (CompoundTag) tag.get("settings");
         if (settingsTag != null) settings.fromTag(settingsTag);
 
         return this;

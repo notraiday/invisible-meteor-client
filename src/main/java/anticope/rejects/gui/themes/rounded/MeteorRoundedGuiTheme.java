@@ -50,7 +50,7 @@ public class MeteorRoundedGuiTheme extends GuiTheme {
             .sliderMax(4)
             .onSliderRelease()
             .onChanged(aDouble -> {
-                if (mc.currentScreen instanceof WidgetScreen) ((WidgetScreen) mc.currentScreen).invalidate();
+                if (mc.gui.screen() instanceof WidgetScreen) ((WidgetScreen) mc.gui.screen()).invalidate();
             })
             .build()
     );
@@ -69,13 +69,17 @@ public class MeteorRoundedGuiTheme extends GuiTheme {
             .build()
     );
 
+    public final Setting<Boolean> modulesHelpText = sgGeneral.add(new BoolSetting.Builder()
+            .name("modules-help-text")
+            .description("Displays help text for modules.")
+            .defaultValue(false)
+            .build()
+    );
+
     public final Setting<Boolean> hideHUD = sgGeneral.add(new BoolSetting.Builder()
             .name("hide-HUD")
             .description("Hide HUD when in GUI.")
             .defaultValue(false)
-            .onChanged(v -> {
-                if (mc.currentScreen instanceof WidgetScreen) mc.options.hudHidden = v;
-            })
             .build()
     );
 
@@ -217,8 +221,8 @@ public class MeteorRoundedGuiTheme extends GuiTheme {
     }
 
     @Override
-    protected WConfirmedButton confirmedButton(String text, String confirmText, GuiTexture texture) {
-        return w(new WMeteorConfirmedButton(text, confirmText, texture));
+    protected WConfirmedButton confirmedButton(String s, String s1, GuiTexture guiTexture) {
+        return null;
     }
 
     @Override
@@ -228,7 +232,7 @@ public class MeteorRoundedGuiTheme extends GuiTheme {
 
     @Override
     public WConfirmedMinus confirmedMinus() {
-        return w(new WMeteorConfirmedMinus());
+        return null;
     }
 
     @Override
@@ -282,8 +286,13 @@ public class MeteorRoundedGuiTheme extends GuiTheme {
     }
 
     @Override
+    public WWidget module(Module module) {
+        return w(new WMeteorModule(module, module.title));
+    }
+
+    @Override
     public WWidget module(Module module, String title) {
-        return w(new WMeteorModule(module));
+        return w(new WMeteorModule(module, title));
     }
 
     @Override
@@ -380,6 +389,11 @@ public class MeteorRoundedGuiTheme extends GuiTheme {
     @Override
     public boolean categoryIcons() {
         return categoryIcons.get();
+    }
+
+    @Override
+    public boolean modulesHelpText() {
+        return modulesHelpText.get();
     }
 
     @Override

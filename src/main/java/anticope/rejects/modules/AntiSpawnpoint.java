@@ -7,12 +7,12 @@ import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.BedBlock;
-import net.minecraft.block.Blocks;
-import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.BedBlock;
+import net.minecraft.world.level.block.Blocks;
 
 public class AntiSpawnpoint extends Module {
 
@@ -31,23 +31,23 @@ public class AntiSpawnpoint extends Module {
 
     @EventHandler
     private void onSendPacket(PacketEvent.Send event) {
-        if (mc.world == null) return;
-        if(!(event.packet instanceof PlayerInteractBlockC2SPacket)) return;
+        if (mc.level == null) return;
+        if(!(event.packet instanceof ServerboundUseItemOnPacket)) return;
 
+        BlockPos blockPos = ((ServerboundUseItemOnPacket) event.packet).hitResult().getBlockPos();
+        boolean IsOverWorld = mc.level.dimension() == Level.OVERWORLD;
+        boolean IsNetherWorld = mc.level.dimension() == Level.NETHER;
+        boolean BlockIsBed = mc.level.getBlockState(blockPos).getBlock() instanceof BedBlock;
+        boolean BlockIsAnchor = mc.level.getBlockState(blockPos).getBlock().equals(Blocks.RESPAWN_ANCHOR);
 
-        BlockPos blockPos = ((PlayerInteractBlockC2SPacket) event.packet).getBlockHitResult().getBlockPos();
-        boolean IsOverWorld = mc.world.getRegistryKey() == World.OVERWORLD;
-        boolean IsNetherWorld = mc.world.getRegistryKey() == World.NETHER;
-        boolean BlockIsBed = mc.world.getBlockState(blockPos).getBlock() instanceof BedBlock;
-        boolean BlockIsAnchor = mc.world.getBlockState(blockPos).getBlock().equals(Blocks.RESPAWN_ANCHOR);
-
+        assert mc.player != null;
         if (fakeUse.get()) {
             if (BlockIsBed && IsOverWorld) {
-                mc.player.swingHand(Hand.MAIN_HAND);
-                mc.player.updatePosition(blockPos.getX(),blockPos.up().getY(),blockPos.getZ());
+                mc.player.swing(InteractionHand.MAIN_HAND, mc.player.getItemInHand(InteractionHand.MAIN_HAND).getInteractAnimation(), false);
+                mc.player.absSnapTo(blockPos.getX(),blockPos.above().getY(),blockPos.getZ());
             }
             else if (BlockIsAnchor && IsNetherWorld) {
-                mc.player.swingHand(Hand.MAIN_HAND);
+                mc.player.swing(InteractionHand.MAIN_HAND, mc.player.getItemInHand(InteractionHand.MAIN_HAND).getInteractAnimation(), false);
             }
         }
 

@@ -7,13 +7,13 @@ import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.LilyPadBlock;
-import net.minecraft.client.option.KeyBinding;
-import net.minecraft.entity.vehicle.BoatEntity;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.vehicle.boat.AbstractBoat;
+import net.minecraft.world.level.block.LilyPadBlock;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3d;
 import zgoly.meteorist.Meteorist;
 
@@ -122,6 +122,12 @@ public class BoatControl extends Module {
             .build()
     );
 
+    private final Setting<Boolean> useLerpedPos = sgRender.add(new BoolSetting.Builder()
+            .name("use-lerped-position")
+            .description("Uses the lerped position for the rendering collisions.")
+            .defaultValue(true)
+            .build()
+    );
     private final Setting<Boolean> renderSideColor1 = sgRender.add(new BoolSetting.Builder()
             .name("render-left-collision")
             .description("Renders the left collision.")
@@ -163,7 +169,7 @@ public class BoatControl extends Module {
             .build()
     );
 
-    private final List<KeyBinding> toRelease = new ArrayList<>();
+    private final List<KeyMapping> toRelease = new ArrayList<>();
     private State currentState = State.NOTHING;
     private boolean wasInBoat = false;
 
@@ -181,36 +187,40 @@ public class BoatControl extends Module {
         // We don't need pressed keys
         wasInBoat = false;
         toRelease.clear();
-        mc.options.forwardKey.setPressed(false);
-        mc.options.leftKey.setPressed(false);
-        mc.options.rightKey.setPressed(false);
+        mc.options.keyUp.setDown(false);
+        mc.options.keyLeft.setDown(false);
+        mc.options.keyRight.setDown(false);
     }
 
     @EventHandler
     private void onTick(TickEvent.Pre event) {
         currentState = State.NOTHING;
 
-        BoatEntity boat = (BoatEntity) mc.player.getVehicle();
-        if (boat == null || !boat.isInFluid() || boat.getControllingPassenger() != mc.player) {
+        if (!(mc.player.getVehicle() instanceof AbstractBoat boat)) {
+            wasInBoat = false;
+            return;
+        }
+
+        if (!boat.isInLiquid() || boat.getControllingPassenger() != mc.player) {
             wasInBoat = false;
             return;
         }
 
         if (!wasInBoat && turnToYaw.get() && autoYaw.get()) {
-            yaw.set((double) MathHelper.wrapDegrees(boat.getYaw()));
+            yaw.set((double) Mth.wrapDegrees(boat.getYRot()));
             wasInBoat = true;
         }
 
         if (autoForward.get()) {
             currentState = State.MOVING_FORWARD;
-            hold(mc.options.forwardKey);
+            hold(mc.options.keyUp);
         }
 
         if (!smartTurning.get()) return;
 
-        Map<State, KeyBinding> stateToKeyBinding = Map.of(
-                State.TURNING_LEFT, mc.options.leftKey,
-                State.TURNING_RIGHT, mc.options.rightKey
+        Map<State, KeyMapping> stateToKeyBinding = Map.of(
+                State.TURNING_LEFT, mc.options.keyLeft,
+                State.TURNING_RIGHT, mc.options.keyRight
         );
 
         State leftAction = leftCollisionAction.get();
@@ -221,67 +231,87 @@ public class BoatControl extends Module {
 
         if (!leftList.isEmpty()) {
             currentState = leftAction;
-            hold(stateToKeyBinding.get(leftAction));
+            KeyMapping key = stateToKeyBinding.get(leftAction);
+            if (key != null) hold(key);
         } else if (!rightList.isEmpty()) {
             currentState = rightAction;
-            hold(stateToKeyBinding.get(rightAction));
+            KeyMapping key = stateToKeyBinding.get(rightAction);
+            if (key != null) hold(key);
         }
 
-        if (!leftList.isEmpty() && !rightList.isEmpty()) currentState = bothCollisionAction.get();
+        if (!leftList.isEmpty() && !rightList.isEmpty()) {
+            currentState = bothCollisionAction.get();
+            KeyMapping key = stateToKeyBinding.get(currentState);
+            if (key != null) hold(key);
+        }
 
-        double yawDifference = MathHelper.wrapDegrees(yaw.get() - boat.getYaw());
+        double yawDifference = Mth.wrapDegrees(yaw.get() - boat.getYRot());
         if ((currentState == State.MOVING_FORWARD || currentState == State.NOTHING) && turnToYaw.get() && Math.abs(yawDifference) > accuracy.get()) {
             currentState = yawDifference < 0 ? State.TURNING_LEFT : State.TURNING_RIGHT;
             hold(stateToKeyBinding.get(currentState));
         }
 
         if ((currentState == State.TURNING_LEFT || currentState == State.TURNING_RIGHT) && autoForward.get() && stopWhenTurning.get()) {
-            mc.options.forwardKey.setPressed(false);
+            mc.options.keyUp.setDown(false);
         }
     }
 
 
-    private void hold(KeyBinding keyBinding) {
+    private void hold(KeyMapping keyBinding) {
         toRelease.add(keyBinding);
-        keyBinding.setPressed(true);
+        keyBinding.setDown(true);
     }
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
         if (!toRelease.isEmpty()) {
-            toRelease.forEach(keyBinding -> keyBinding.setPressed(false));
+            toRelease.forEach(keyBinding -> keyBinding.setDown(false));
             toRelease.clear();
         }
     }
 
-    private Vec3d vectorToVec(Vector3d vector3d) {
-        return new Vec3d(vector3d.x, vector3d.y, vector3d.z);
+    private Vec3 vectorToVec(Vector3d vector3d) {
+        return new Vec3(vector3d.x, vector3d.y, vector3d.z);
     }
 
-    private Box getBox(BoatEntity boat, Vector3d collisionOffset, Vector3d collisionSize) {
-        Vec3d offsetPos = new Vec3d(boat.getX(), boat.getY(), boat.getZ()).add(vectorToVec(collisionOffset).rotateY((float) -Math.toRadians(boat.getYaw() + 90)));
-        Vec3d size = vectorToVec(collisionSize);
-        return Box.of(offsetPos, size.x, size.y, size.z);
+    private AABB getBox(AbstractBoat boat, Vector3d collisionOffset, Vector3d collisionSize) {
+        return getBoxInternal(boat, collisionOffset, collisionSize, boat.position());
     }
 
-    private List<BlockPos> getBlockPos(Box box) {
-        return BlockPos.stream(box).map(BlockPos::new)
-                .filter(blockPos -> !mc.world.getBlockState(blockPos).getCollisionShape(mc.world, blockPos).isEmpty())
-                .filter(blockPos -> !(mc.world.getBlockState(blockPos).getBlock() instanceof LilyPadBlock))
+    private AABB getBoxWithLerp(AbstractBoat boat, Vector3d collisionOffset, Vector3d collisionSize, float deltaTime) {
+        return getBoxInternal(boat, collisionOffset, collisionSize, boat.getPosition(deltaTime));
+    }
+
+    private AABB getBoxInternal(AbstractBoat boat, Vector3d collisionOffset, Vector3d collisionSize, Vec3 boatPos) {
+        Vec3 offsetPos = boatPos.add(vectorToVec(collisionOffset).yRot((float) -Math.toRadians(boat.getYRot() + 90)));
+        Vec3 size = vectorToVec(collisionSize);
+        return AABB.ofSize(offsetPos, size.x, size.y, size.z);
+    }
+
+    private List<BlockPos> getBlockPos(AABB box) {
+        return BlockPos.betweenClosedStream(box).map(BlockPos::immutable)
+                .filter(blockPos -> !mc.level.getBlockState(blockPos).getCollisionShape(mc.level, blockPos).isEmpty())
+                .filter(blockPos -> !(mc.level.getBlockState(blockPos).getBlock() instanceof LilyPadBlock))
                 .toList();
     }
 
     @EventHandler
     private void onRender(Render3DEvent event) {
-        if (mc.player.getVehicle() instanceof net.minecraft.entity.vehicle.BoatEntity boat) {
-            if (boat.isInFluid() && boat.getControllingPassenger() == mc.player) {
-                if (renderSideColor1.get()) {
-                    event.renderer.box(getBox(boat, leftCollisionOffset.get(), leftCollisionSize.get()), sideColor1.get(), lineColor1.get(), ShapeMode.Both, 0);
-                }
-                if (renderSideColor2.get()) {
-                    event.renderer.box(getBox(boat, rightCollisionOffset.get(), rightCollisionSize.get()), sideColor2.get(), lineColor2.get(), ShapeMode.Both, 0);
-                }
-            }
+        if (!(mc.player.getVehicle() instanceof AbstractBoat boat) || !boat.isInLiquid() || boat.getControllingPassenger() != mc.player)
+            return;
+
+        if (renderSideColor1.get()) {
+            AABB box = useLerpedPos.get()
+                    ? getBoxWithLerp(boat, leftCollisionOffset.get(), leftCollisionSize.get(), event.tickDelta)
+                    : getBox(boat, leftCollisionOffset.get(), leftCollisionSize.get());
+            event.renderer.box(box, sideColor1.get(), lineColor1.get(), ShapeMode.Both, 0);
+        }
+
+        if (renderSideColor2.get()) {
+            AABB box = useLerpedPos.get()
+                    ? getBoxWithLerp(boat, rightCollisionOffset.get(), rightCollisionSize.get(), event.tickDelta)
+                    : getBox(boat, rightCollisionOffset.get(), rightCollisionSize.get());
+            event.renderer.box(box, sideColor2.get(), lineColor2.get(), ShapeMode.Both, 0);
         }
     }
 

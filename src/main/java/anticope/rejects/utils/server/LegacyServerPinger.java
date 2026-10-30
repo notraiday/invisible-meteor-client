@@ -1,15 +1,14 @@
 package anticope.rejects.utils.server;
 
-import net.minecraft.client.network.MultiplayerServerListPinger;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.network.NetworkingBackend;
-
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicInteger;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.ServerStatusPinger;
+import net.minecraft.server.network.EventLoopGroupHolder;
 
 public class LegacyServerPinger {
     private static final AtomicInteger threadNumber = new AtomicInteger(0);
-    private ServerInfo server;
+    private ServerData server;
     private boolean done = false;
     private boolean failed = false;
 
@@ -18,17 +17,17 @@ public class LegacyServerPinger {
     }
 
     public void ping(String ip, int port) {
-        server = new ServerInfo("", ip + ":" + port, ServerInfo.ServerType.OTHER);
+        server = new ServerData("", ip + ":" + port, ServerData.Type.OTHER);
 
         new Thread(() -> pingInCurrentThread(ip, port),
                 "Server Pinger #" + threadNumber.incrementAndGet()).start();
     }
 
     private void pingInCurrentThread(String ip, int port) {
-        MultiplayerServerListPinger pinger = new MultiplayerServerListPinger();
+        ServerStatusPinger pinger = new ServerStatusPinger();
 
         try {
-            pinger.add(server, () -> { }, () -> { }, (NetworkingBackend) null);
+            pinger.pingServer(server, () -> {}, () -> {}, EventLoopGroupHolder.remote(false));
 
         } catch (UnknownHostException e) {
             failed = true;
@@ -37,7 +36,7 @@ public class LegacyServerPinger {
             failed = true;
         }
 
-        pinger.cancel();
+        pinger.removeAll();
         done = true;
     }
 
@@ -50,6 +49,6 @@ public class LegacyServerPinger {
     }
 
     public String getServerIP() {
-        return server.address;
+        return server.ip;
     }
 }

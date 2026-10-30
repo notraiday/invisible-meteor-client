@@ -2,18 +2,26 @@ package anticope.rejects.mixin;
 
 import anticope.rejects.modules.Rendering;
 import meteordevelopment.meteorclient.systems.modules.Modules;
-import net.minecraft.client.render.TexturedRenderLayers;
+import net.minecraft.client.renderer.blockentity.ChestRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 
-@Mixin(TexturedRenderLayers.class)
+@Mixin(ChestRenderer.class)
 public class TexturedRenderLayersMixin {
-    @ModifyVariable(method = "getChestTextureId(Lnet/minecraft/block/entity/BlockEntity;Lnet/minecraft/block/enums/ChestType;Z)Lnet/minecraft/client/util/SpriteIdentifier;", at = @At("LOAD"), ordinal = 0)
-    private static boolean chrsitmas(boolean christmas) {
-        Rendering rendering = Modules.get().get(Rendering.class);
-        if (rendering != null && rendering.chistmas())
-            return true;
-        return christmas;
+    @ModifyArg(
+        method = "extractRenderState",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/blockentity/ChestRenderer;getChestMaterial(Lnet/minecraft/world/level/block/entity/BlockEntity;Z)Lnet/minecraft/client/renderer/blockentity/state/ChestRenderState$ChestMaterialType;"
+        ),
+        index = 1
+    )
+    private boolean modifyXmasTexturesArg(boolean original) {
+        if (Modules.get() != null) {
+            Rendering rendering = Modules.get().get(Rendering.class);
+            if (rendering != null && rendering.chistmas()) return true;
+        }
+        return original;
     }
 }

@@ -7,9 +7,10 @@ import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.client.gui.screen.DisconnectedScreen;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
 import org.apache.commons.lang3.RandomStringUtils;
 import zgoly.meteorist.Meteorist;
+import zgoly.meteorist.utils.misc.DebugLogger;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -21,7 +22,6 @@ public class DmSpam extends Module {
     private final SettingGroup sgDelay = settings.createGroup("Delay");
     private final SettingGroup sgDisableSettings = settings.createGroup("Disable Settings");
     private final SettingGroup sgSpecialCases = settings.createGroup("Special Cases");
-    private final SettingGroup sgDebug = settings.createGroup("Debug");
 
     private final Setting<String> messageCommand = sgCommand.add(new StringSetting.Builder()
             .name("message-command")
@@ -105,11 +105,20 @@ public class DmSpam extends Module {
             .sliderRange(1, 256)
             .build()
     );
-
-    private final Setting<Boolean> printDebugInfo = sgDebug.add(new BoolSetting.Builder()
-            .name("print-debug-info")
-            .description("Logs debug information in the chat.")
-            .defaultValue(false)
+    private final Setting<PlayerMode> playerModeSetting = sgSpecialCases.add(new EnumSetting.Builder<PlayerMode>()
+            .name("player-mode")
+            .description("Choose between Blacklist (exclude players) or Whitelist (only include players).")
+            .defaultValue(PlayerMode.Blacklist)
+            .build()
+    );
+    private final Setting<List<String>> playerWhitelist = sgSpecialCases.add(new StringListSetting.Builder()
+            .name("player-whitelist")
+            .description("List of player names to include when in Whitelist mode.")
+            .build()
+    );
+    private final Setting<List<String>> playerBlacklist = sgSpecialCases.add(new StringListSetting.Builder()
+            .name("player-blacklist")
+            .description("List of player names to exclude from receiving messages when in Blacklist mode.")
             .build()
     );
 
@@ -117,8 +126,12 @@ public class DmSpam extends Module {
     private final List<Integer> usedMessageIds = new ArrayList<>();
     private long currentTick;
 
+    private final DebugLogger debugLogger;
+
     public DmSpam() {
         super(Meteorist.CATEGORY, "dm-spam", "Spams messages in players direct messages.");
+
+        debugLogger = new DebugLogger(this, settings);
     }
 
     @EventHandler
@@ -126,39 +139,57 @@ public class DmSpam extends Module {
         if (disableOnDisconnect.get() && event.screen instanceof DisconnectedScreen) toggle();
     }
 
-    @EventHandler
-    private void onGameLeft(GameLeftEvent event) {
-        if (disableOnExit.get()) toggle();
-    }
-
     @Override
     public void onActivate() {
-        currentTick = mc.world.getTime();
+        currentTick = mc.level != null ? mc.level.getGameTime() : 0;
     }
 
     @EventHandler
-
-
     public void onDeactivate() {
         usedPlayerUUIDs.clear();
         usedMessageIds.clear();
     }
 
+    @EventHandler
+    private void onGameLeft(GameLeftEvent event) {
+        if (disableOnExit.get()) toggle();
+    }
+
     // I'm not sure if this is the best way to do it, but it seems to work like a charm
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        List<UUID> allPlayerUUIDs = new ArrayList<>(mc.getNetworkHandler().getPlayerUuids());
-        if (allPlayerUUIDs.isEmpty() || messageCommand.get().isEmpty()) return;
+        List<UUID> allPlayerUUIDs = new ArrayList<>(mc.getConnection().getOnlinePlayerIds());
+        if (allPlayerUUIDs.isEmpty() || messageCommand.get().isEmpty() || spamMessages.get().isEmpty()) return;
 
         List<UUID> unusedPlayerUUIDs = new ArrayList<>(allPlayerUUIDs);
         unusedPlayerUUIDs.removeAll(usedPlayerUUIDs);
 
-        if (excludeSelf.get()) unusedPlayerUUIDs.remove(mc.player.getUuid());
+        if (excludeSelf.get()) unusedPlayerUUIDs.remove(mc.player.getUUID());
 
-        long currentWorldTime = mc.world.getTime();
+        long currentWorldTime = mc.level.getGameTime();
 
         if (!unusedPlayerUUIDs.isEmpty() && currentTick <= currentWorldTime) {
             UUID selectedPlayerUUID = playerMode.get() == Mode.Sequential ? unusedPlayerUUIDs.getFirst() : unusedPlayerUUIDs.get(new Random().nextInt(unusedPlayerUUIDs.size()));
+
+            String playerName = mc.getConnection().getOnlinePlayers().stream()
+                    .filter(player -> player.getProfile().id().equals(selectedPlayerUUID))
+                    .map(player -> player.getProfile().name())
+                    .findFirst()
+                    .orElse("");
+
+            if (playerModeSetting.get() == PlayerMode.Blacklist) {
+                if (playerBlacklist.get().contains(playerName)) {
+                    debugLogger.info("Skipping blacklisted player: " + playerName);
+                    usedPlayerUUIDs.add(selectedPlayerUUID);
+                    return;
+                }
+            } else if (playerModeSetting.get() == PlayerMode.Whitelist) {
+                if (!playerWhitelist.get().contains(playerName)) {
+                    debugLogger.info("Skipping non-whitelisted player: " + playerName);
+                    usedPlayerUUIDs.add(selectedPlayerUUID);
+                    return;
+                }
+            }
 
             List<Integer> allMessageIds = IntStream.rangeClosed(0, spamMessages.get().size() - 1).boxed().collect(Collectors.toCollection(LinkedList::new));
             allMessageIds.removeAll(usedMessageIds);
@@ -172,20 +203,13 @@ public class DmSpam extends Module {
                 allMessageIds = IntStream.rangeClosed(0, spamMessages.get().size() - 1).boxed().collect(Collectors.toCollection(LinkedList::new));
             }
 
-            String playerName = mc.getNetworkHandler().getPlayerList().stream()
-                    .filter(player -> player.getProfile().id().equals(selectedPlayerUUID))
-                    .map(player -> player.getProfile().name())
-                    .findFirst()
-                    .orElse("");
-
             int selectedMessageId = messageMode.get() == Mode.Sequential ? allMessageIds.getFirst() : allMessageIds.get(new Random().nextInt(allMessageIds.size()));
             String selectedMessage = spamMessages.get().get(selectedMessageId);
             if (antiSpamBypass.get())
-                selectedMessage += " " + RandomStringUtils.randomAlphabetic(bypassTextLength.get()).toLowerCase();
+                selectedMessage += " " + RandomStringUtils.insecure().nextAlphabetic(bypassTextLength.get()).toLowerCase();
 
             ChatUtils.sendPlayerMsg(messageCommand.get().replace("{player}", playerName).replace("{message}", selectedMessage));
-            if (printDebugInfo.get())
-                info("Sent '" + selectedMessage + "' to '" + playerName + "'. Handling a delay of " + delayBetweenMessages.get() + " ticks.");
+            debugLogger.info("Sent '" + selectedMessage + "' to '" + playerName + "'. Handling a delay of " + delayBetweenMessages.get() + " ticks.");
 
             usedMessageIds.add(selectedMessageId);
             usedPlayerUUIDs.add(selectedPlayerUUID);
@@ -195,8 +219,7 @@ public class DmSpam extends Module {
             toggle();
         } else if (currentTick <= currentWorldTime) {
             currentTick = currentWorldTime + delayBetweenPlayers.get();
-            if (printDebugInfo.get())
-                info("The players ended, handling a delay of " + delayBetweenPlayers.get() + " ticks.");
+            debugLogger.info("The players ended, handling a delay of " + delayBetweenPlayers.get() + " ticks.");
             usedPlayerUUIDs.clear();
         }
     }
@@ -210,5 +233,10 @@ public class DmSpam extends Module {
         None,
         NoMoreMessages,
         NoMorePlayers
+    }
+
+    public enum PlayerMode {
+        Blacklist,
+        Whitelist
     }
 }

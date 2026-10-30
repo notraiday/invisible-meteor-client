@@ -14,19 +14,28 @@ import meteordevelopment.meteorclient.gui.widgets.pressable.WButton;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WMinus;
 import meteordevelopment.meteorclient.systems.friends.Friends;
 import meteordevelopment.meteorclient.systems.modules.Module;
+import meteordevelopment.meteorclient.utils.entity.TargetUtils;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
+import meteordevelopment.meteorclient.utils.player.PlayerUtils;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.mob.EndermanEntity;
-import net.minecraft.entity.mob.ZombifiedPiglinEntity;
-import net.minecraft.entity.passive.AnimalEntity;
-import net.minecraft.entity.passive.TameableEntity;
-import net.minecraft.entity.passive.WolfEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.world.entity.AgeableMob;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.OwnableEntity;
+import net.minecraft.world.entity.animal.frog.Frog;
+import net.minecraft.world.entity.animal.parrot.Parrot;
+import net.minecraft.world.entity.animal.wolf.Wolf;
+import net.minecraft.world.entity.monster.Enderman;
+import net.minecraft.world.entity.monster.Zoglin;
+import net.minecraft.world.entity.monster.hoglin.Hoglin;
+import net.minecraft.world.entity.monster.piglin.Piglin;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.monster.zombie.ZombifiedPiglin;
+import net.minecraft.world.entity.player.Player;
 import zgoly.meteorist.Meteorist;
 import zgoly.meteorist.modules.rangeactions.rangeactions.BaseRangeAction;
 import zgoly.meteorist.modules.rangeactions.rangeactions.CommandsRangeAction;
@@ -39,25 +48,29 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static zgoly.meteorist.Meteorist.*;
+import static meteordevelopment.meteorclient.gui.renderer.GuiRenderer.COPY;
+import static zgoly.meteorist.Meteorist.ARROW_DOWN;
+import static zgoly.meteorist.Meteorist.ARROW_UP;
+import static zgoly.meteorist.utils.MeteoristUtils.calculateFov;
 
 public class RangeActions extends Module {
     public static List<BaseRangeAction> rangeActions = new ArrayList<>();
     private final RangeActionFactory factory = new RangeActionFactory();
     private final Map<CommandsRangeAction, Integer> commandDelayTimers = new HashMap<>();
     private final Map<CommandsRangeAction, Integer> commandIndex = new HashMap<>();
-    private Map<String, Boolean> ignoreFlags = new HashMap<>();
+
+    private boolean ignoreStartBreakingBlock, ignoreInteractBlock, ignoreAttackEntity, ignoreInteractEntity;
 
     public RangeActions() {
         super(Meteorist.CATEGORY, "range-actions", "Combined functionality of different range actions.");
     }
 
-    public NbtCompound toTag() {
-        NbtCompound tag = super.toTag();
+    public CompoundTag toTag() {
+        CompoundTag tag = super.toTag();
 
-        NbtList list = new NbtList();
+        ListTag list = new ListTag();
         for (BaseRangeAction rangeAction : rangeActions) {
-            NbtCompound mTag = new NbtCompound();
+            CompoundTag mTag = new CompoundTag();
             mTag.putString("type", rangeAction.getTypeName());
             mTag.put("rangeAction", rangeAction.toTag());
 
@@ -67,21 +80,24 @@ public class RangeActions extends Module {
         return tag;
     }
 
-    public Module fromTag(NbtCompound tag) {
+    public Module fromTag(CompoundTag tag) {
         super.fromTag(tag);
+
+        commandDelayTimers.clear();
+        commandIndex.clear();
 
         rangeActions.clear();
 
-        NbtList list = tag.getListOrEmpty("rangeActions");
+        ListTag list = tag.getListOrEmpty("rangeActions");
 
-        for (NbtElement tagII : list) {
-            NbtCompound tagI = (NbtCompound) tagII;
-            String type = tagI.getString("type").orElse("");
+        for (Tag tagII : list) {
+            CompoundTag tagI = (CompoundTag) tagII;
+            String type = tagI.getStringOr("type", "");
             BaseRangeAction rangeAction = factory.createRangeAction(type);
 
             if (rangeAction != null) {
-                NbtCompound rangeActionTag = tagI.getCompound("rangeAction").orElse(new NbtCompound());
-                if (!rangeActionTag.isEmpty()) rangeAction.fromTag(rangeActionTag);
+                CompoundTag rangeActionTag = (CompoundTag) tagI.get("rangeAction");
+                if (rangeActionTag != null) rangeAction.fromTag(rangeActionTag);
                 rangeActions.add(rangeAction);
             }
         }
@@ -103,10 +119,13 @@ public class RangeActions extends Module {
             list.add(theme.settings(rangeAction.settings)).expandX();
 
             WContainer container = list.add(theme.horizontalList()).expandX().widget();
+
             if (rangeActions.size() > 1) {
+                WContainer moveContainer = container.add(theme.horizontalList()).expandX().widget();
                 int index = rangeActions.indexOf(rangeAction);
+
                 if (index > 0) {
-                    WButton moveUp = container.add(theme.button(ARROW_UP)).widget();
+                    WButton moveUp = moveContainer.add(theme.button(ARROW_UP)).widget();
                     moveUp.tooltip = "Move range action up.";
                     moveUp.action = () -> {
                         rangeActions.remove(index);
@@ -116,7 +135,7 @@ public class RangeActions extends Module {
                 }
 
                 if (index < rangeActions.size() - 1) {
-                    WButton moveDown = container.add(theme.button(ARROW_DOWN)).widget();
+                    WButton moveDown = moveContainer.add(theme.button(ARROW_DOWN)).widget();
                     moveDown.tooltip = "Move range action down.";
                     moveDown.action = () -> {
                         rangeActions.remove(index);
@@ -141,7 +160,8 @@ public class RangeActions extends Module {
             };
         }
 
-        list.add(theme.horizontalSeparator()).expandX();
+        if (!rangeActions.isEmpty()) list.add(theme.horizontalSeparator()).expandX();
+
         WTable controls = list.add(theme.table()).expandX().widget();
 
         WButton createInteraction = controls.add(theme.button("New Interaction")).expandX().widget();
@@ -176,109 +196,144 @@ public class RangeActions extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        Map<String, Boolean> ignoreFlags = new HashMap<>();
-        ignoreFlags.put("ignoreStartBreakingBlock", false);
-        ignoreFlags.put("ignoreInteractBlock", false);
-        ignoreFlags.put("ignoreAttackEntity", false);
-        ignoreFlags.put("ignoreInteractEntity", false);
+        ignoreStartBreakingBlock = ignoreInteractBlock = ignoreAttackEntity = ignoreInteractEntity = false;
+
         boolean shouldSneak = false;
 
         for (BaseRangeAction rangeAction : rangeActions) {
-            for (Entity entity : mc.world.getEntities()) {
-                if (entity == mc.player) continue;
-                if (!rangeAction.entities.get().contains(entity.getType())) continue;
-                if (rangeAction.ignoreFriends.get() && entity instanceof PlayerEntity && Friends.get().isFriend((PlayerEntity) entity))
-                    continue;
-                if (rangeAction.ignoreBabies.get() && entity instanceof AnimalEntity && ((AnimalEntity) entity).isBaby())
-                    continue;
-                if (rangeAction.ignoreNamed.get() && entity.hasCustomName()) continue;
-                if (rangeAction.ignorePassive.get() && isPassive(entity)) continue;
-                if (rangeAction.ignoreTamed.get() && entity instanceof TameableEntity tameableEntity && tameableEntity.getOwner() != null && tameableEntity.getOwner().getUuid().equals(mc.player.getUuid()))
-                    continue;
+            Entity entity = TargetUtils.get(target -> entityCheck(target, rangeAction), rangeAction.priority.get());
 
-                double distance = mc.player.distanceTo(entity);
-                if (distance >= rangeAction.rangeFrom.get() && distance <= rangeAction.rangeTo.get()) {
-                    switch (rangeAction) {
-                        case InteractionRangeAction interactionAction -> {
-                            if (interactionAction.ignoreStartBreakingBlock.get())
-                                ignoreFlags.put("ignoreStartBreakingBlock", true);
-                            if (interactionAction.ignoreInteractBlock.get())
-                                ignoreFlags.put("ignoreInteractBlock", true);
-                            if (interactionAction.ignoreAttackEntity.get()) ignoreFlags.put("ignoreAttackEntity", true);
-                            if (interactionAction.ignoreInteractEntity.get())
-                                ignoreFlags.put("ignoreInteractEntity", true);
-                            if (interactionAction.enableSneak.get()) shouldSneak = true;
-                        }
-                        case DespawnerRangeAction despawnerAction -> {
-                            if (despawnerAction.checkRoof.get() && !mc.world.isSkyVisible(mc.player.getBlockPos().up()))
-                                continue;
-                            mc.player.setVelocity(mc.player.getVelocity().add(0, despawnerAction.upVelocity.get(), 0));
-                        }
-                        case CommandsRangeAction commandsAction -> {
-                            int delay = commandsAction.delay.get();
-                            int commandsPerTick = commandsAction.commandsPerTick.get();
-                            commandDelayTimers.putIfAbsent(commandsAction, 0);
-                            commandIndex.putIfAbsent(commandsAction, 0);
-                            int timer = commandDelayTimers.get(commandsAction);
-                            int index = commandIndex.get(commandsAction);
+            if (entity == null) continue;
 
-                            if (timer >= delay) {
-                                for (int i = 0; i < commandsPerTick && index < commandsAction.commands.get().size(); i++) {
-                                    ChatUtils.sendPlayerMsg(commandsAction.commands.get().get(index));
-                                    index++;
-                                }
-                                commandIndex.put(commandsAction, index);
-                                commandDelayTimers.put(commandsAction, 0);
-                            } else {
-                                commandDelayTimers.put(commandsAction, timer + 1);
-                            }
+            switch (rangeAction) {
+                case InteractionRangeAction interactionAction -> {
+                    if (interactionAction.ignoreStartBreakingBlock.get())
+                        ignoreStartBreakingBlock = true;
+                    if (interactionAction.ignoreInteractBlock.get())
+                        ignoreInteractBlock = true;
+                    if (interactionAction.ignoreAttackEntity.get())
+                        ignoreAttackEntity = true;
+                    if (interactionAction.ignoreInteractEntity.get())
+                        ignoreInteractEntity = true;
+                    if (interactionAction.enableSneak.get())
+                        shouldSneak = true;
+                }
+                case DespawnerRangeAction despawnerAction -> {
+                    if (despawnerAction.checkRoof.get() && !mc.level.canSeeSky(mc.player.blockPosition().above()))
+                        continue;
+                    mc.player.setDeltaMovement(mc.player.getDeltaMovement().add(0, despawnerAction.upVelocity.get(), 0));
+                }
+                case CommandsRangeAction commandsAction -> {
+                    int delay = commandsAction.delay.get();
+                    int commandsPerTick = commandsAction.commandsPerTick.get();
+                    commandDelayTimers.putIfAbsent(commandsAction, 1);
+                    commandIndex.putIfAbsent(commandsAction, 0);
+                    int timer = commandDelayTimers.get(commandsAction);
+                    int index = commandIndex.get(commandsAction);
 
-                            if (index >= commandsAction.commands.get().size()) {
-                                commandIndex.put(commandsAction, 0);
-                            }
+                    if (timer >= delay) {
+                        for (int i = 0; i < commandsPerTick && index < commandsAction.commands.get().size(); i++) {
+                            ChatUtils.sendPlayerMsg(commandsAction.commands.get().get(index));
+                            index++;
                         }
-                        default -> {
-                        }
+                        commandIndex.put(commandsAction, index);
+                        commandDelayTimers.put(commandsAction, 1);
+                    } else {
+                        commandDelayTimers.put(commandsAction, timer + 1);
                     }
+
+                    if (index >= commandsAction.commands.get().size()) {
+                        commandIndex.put(commandsAction, 0);
+                    }
+                }
+                default -> {
                 }
             }
         }
 
-        if (shouldSneak) mc.options.sneakKey.setPressed(true);
-        this.ignoreFlags = ignoreFlags;
+        if (shouldSneak) mc.options.keyShift.setDown(true);
+        else mc.options.keyShift.setDown(false);
     }
 
-    private boolean isPassive(Entity entity) {
-        return (entity instanceof EndermanEntity && !((EndermanEntity) entity).isAngry())
-                || (entity instanceof ZombifiedPiglinEntity && !((ZombifiedPiglinEntity) entity).isAttacking())
-                || (entity instanceof WolfEntity && !((WolfEntity) entity).isAttacking());
+    @Override
+    public void onDeactivate() {
+        mc.options.keyShift.setDown(false);
+    }
+
+    private boolean entityCheck(Entity entity, BaseRangeAction rangeAction) {
+        if (entity.equals(mc.player) || entity.equals(mc.getCameraEntity())) return false;
+        if ((entity instanceof LivingEntity livingEntity && livingEntity.isDeadOrDying()) || !entity.isAlive())
+            return false;
+
+        if (PlayerUtils.isWithin(entity, rangeAction.rangeFrom.get())
+                || !PlayerUtils.isWithin(entity, rangeAction.rangeTo.get())) return false;
+
+        if (!rangeAction.entities.get().contains(entity.getType())) return false;
+        if (rangeAction.ignoreNamed.get() && entity.hasCustomName()) return false;
+
+        if (rangeAction.ignoreTamed.get()) {
+            if (entity instanceof OwnableEntity tameable
+                    && tameable.getOwner() != null
+                    && tameable.getOwner().equals(mc.player)) {
+                return false;
+            }
+        }
+
+        if (rangeAction.ignorePassive.get()) {
+            switch (entity) {
+                case Enderman enderman when !enderman.isCreepy() -> {
+                    return false;
+                }
+                case ZombifiedPiglin piglin when !piglin.isAggressive() -> {
+                    return false;
+                }
+                case Wolf wolf when !wolf.isAggressive() -> {
+                    return false;
+                }
+                default -> {
+                }
+            }
+        }
+
+        if (entity instanceof Player player) {
+            if (rangeAction.ignoreCreative.get() && player.isCreative()) return false;
+            if (rangeAction.ignoreFriends.get() && !Friends.get().shouldAttack(player)) return false;
+            if (rangeAction.ignoreShield.get() && player.isBlocking()) return false;
+        }
+
+        if (entity instanceof LivingEntity livingEntity) {
+            // Hostile mobs with baby variants (zombies, piglins, hoglins, zoglins)
+            if (entity instanceof Zombie || entity instanceof Piglin
+                    || entity instanceof Hoglin || entity instanceof Zoglin) {
+                return rangeAction.hostileMobAgeFilter.get().test(livingEntity);
+            }
+            // Passive mobs with baby variants (animals, villagers)
+            if (entity instanceof AgeableMob && (!(entity instanceof Frog || entity instanceof Parrot))) {
+                return rangeAction.passiveMobAgeFilter.get().test(livingEntity);
+            }
+        }
+
+        if (rangeAction.useFovRange.get() && calculateFov(mc.player, entity) > rangeAction.fovRange.get()) return false;
+        return rangeAction.ignoreWalls.get() || PlayerUtils.canSeeEntity(entity);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     private void onStartBreakingBlockEvent(StartBreakingBlockEvent event) {
-        if (ignoreFlags.getOrDefault("ignoreStartBreakingBlock", false)) {
-            event.cancel();
-        }
+        if (ignoreStartBreakingBlock) event.cancel();
     }
 
     @EventHandler
     private void onInteractBlock(InteractBlockEvent event) {
-        if (ignoreFlags.getOrDefault("ignoreInteractBlock", false)) {
-            event.cancel();
-        }
+        if (ignoreInteractBlock) event.cancel();
     }
 
     @EventHandler(priority = EventPriority.HIGH)
     private void onAttackEntity(AttackEntityEvent event) {
-        if (ignoreFlags.getOrDefault("ignoreAttackEntity", false)) {
-            event.cancel();
-        }
+        if (ignoreAttackEntity) event.cancel();
     }
 
     @EventHandler
     private void onInteractEntity(InteractEntityEvent event) {
-        if (ignoreFlags.getOrDefault("ignoreInteractEntity", false)) {
-            event.cancel();
-        }
+        if (ignoreInteractEntity) event.cancel();
     }
 }

@@ -4,15 +4,16 @@ import meteordevelopment.meteorclient.MeteorClient;
 import meteordevelopment.meteorclient.gui.GuiTheme;
 import meteordevelopment.meteorclient.gui.widgets.WWidget;
 import meteordevelopment.meteorclient.gui.widgets.pressable.WButton;
+import meteordevelopment.meteorclient.events.world.TickEvent;
 import meteordevelopment.meteorclient.settings.DoubleSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.settings.SoundEventListSetting;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
 import zgoly.meteorist.Meteorist;
 import zgoly.meteorist.events.DisconnectedScreenEvent;
 
@@ -24,7 +25,7 @@ public class DisconnectSound extends Module {
     private final Setting<List<SoundEvent>> sound = sgGeneral.add(new SoundEventListSetting.Builder()
             .name("sound")
             .description("Sound to play.")
-            .defaultValue(List.of(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value()))
+            .defaultValue(List.of(SoundEvents.NOTE_BLOCK_PLING.value()))
             .build()
     );
     private final Setting<Double> soundPitch = sgGeneral.add(new DoubleSetting.Builder()
@@ -44,13 +45,15 @@ public class DisconnectSound extends Module {
             .build()
     );
 
+    private boolean pending;
+
     public DisconnectSound() {
         super(Meteorist.CATEGORY, "disconnect-sound", "Plays a sound when the Disconnected Screen appears (e.g., when kicked).");
         MeteorClient.EVENT_BUS.subscribe(this);
     }
 
     private void playSound() {
-        mc.getSoundManager().play(PositionedSoundInstance.master(sound.get().getFirst(), soundPitch.get().floatValue(), soundVolume.get().floatValue()));
+        mc.getSoundManager().play(SimpleSoundInstance.forUI(sound.get().getFirst(), soundPitch.get().floatValue(), soundVolume.get().floatValue()));
     }
 
     @Override
@@ -60,8 +63,18 @@ public class DisconnectSound extends Module {
         return button;
     }
 
+    // The disconnect screen is shown before the level teardown calls SoundManager.stop(), which kills anything playing,
+    // so the sound is played on the next tick instead.
     @EventHandler
     private void onDisconnectedScreen(DisconnectedScreenEvent event) {
-        if (this.isActive()) playSound();
+        if (this.isActive()) pending = true;
+    }
+
+    @EventHandler
+    private void onTick(TickEvent.Post event) {
+        if (pending) {
+            pending = false;
+            playSound();
+        }
     }
 }

@@ -1,18 +1,17 @@
 package anticope.rejects.modules;
 
 import anticope.rejects.MeteorRejectsAddon;
-import meteordevelopment.meteorclient.mixin.EntityVelocityUpdateS2CPacketAccessor;
 import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
-import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
-import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
-import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.network.protocol.game.ClientboundExplodePacket;
+import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
+import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
+import net.minecraft.world.phys.Vec3;
 
 public class AntiCrash extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -30,32 +29,30 @@ public class AntiCrash extends Module {
 
     @EventHandler
     private void onPacketReceive(PacketEvent.Receive event) {
-        if (event.packet instanceof ExplosionS2CPacket packet) {
-            Vec3d explodePos = packet.center();
-            // TODO: 1.21.3
-            Vec3d playerKnockback = new Vec3d(0, 0, 0);
+        if (event.packet instanceof ClientboundExplodePacket packet) {
+            Vec3 explodePos = packet.center();
+            Vec3 playerKnockback = new Vec3(0, 0, 0);
             if(packet.playerKnockback().isPresent()) {
                 playerKnockback = packet.playerKnockback().get();
             }
-            if (/* outside of world */ explodePos.getX() > 30_000_000 || explodePos.getY() > 30_000_000 || explodePos.getZ() > 30_000_000 || explodePos.getX() < -30_000_000 || explodePos.getY() < -30_000_000 || explodePos.getZ() < -30_000_000 ||
+            if (/* outside of world */ explodePos.x() > 30_000_000 || explodePos.y() > 30_000_000 || explodePos.z() > 30_000_000 || explodePos.x() < -30_000_000 || explodePos.y() < -30_000_000 || explodePos.z() < -30_000_000 ||
                     // too much knockback
                     playerKnockback.x > 30_000_000 || playerKnockback.y > 30_000_000 || playerKnockback.z > 30_000_000
                     // knockback can be negative?
                     || playerKnockback.x < -30_000_000 || playerKnockback.y < -30_000_000 || playerKnockback.z < -30_000_000
             ) cancel(event);
-        } else if (event.packet instanceof ParticleS2CPacket packet) {
+        } else if (event.packet instanceof ClientboundLevelParticlesPacket packet) {
             // too many particles
-            if (packet.getCount() > 100_000) cancel(event);
-        } else if (event.packet instanceof PlayerPositionLookS2CPacket packet) {
-            Vec3d playerPos = packet.change().position();
+            if (packet.count() > 100_000) cancel(event);
+        } else if (event.packet instanceof ClientboundPlayerPositionPacket packet) {
+            Vec3 playerPos = packet.change().position();
             // out of world movement
             if (playerPos.x > 30_000_000 || playerPos.y > 30_000_000 || playerPos.z > 30_000_000 || playerPos.x < -30_000_000 || playerPos.y < -30_000_000 || playerPos.z < -30_000_000)
                 cancel(event);
-        } else if (event.packet instanceof EntityVelocityUpdateS2CPacket packet) {
+        } else if (event.packet instanceof ClientboundSetEntityMotionPacket packet) {
             // velocity
-            Vec3d velocity = ((EntityVelocityUpdateS2CPacketAccessor) packet).meteor$getVelocity();
-            if (velocity.x > 30_000_000 || velocity.y > 30_000_000 || velocity.z > 30_000_000
-                    || velocity.x < -30_000_000 || velocity.y < -30_000_000 || velocity.z < -30_000_000
+            if (packet.movement().x > 1000 || packet.movement().y > 1000 || packet.movement().z > 1000
+                    || packet.movement().x < -1000 || packet.movement().y  < -1000 || packet.movement().z < -1000
             ) cancel(event);
         }
     }

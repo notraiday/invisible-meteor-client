@@ -23,6 +23,9 @@
 - Moved config to .minecraft/config/mvo76
 - Disabled some logs(It's still recomended to set .minecraft/logs to read-only)
 - Added MultiplayerTabAddons module to disable Meteor Client's buttons in the multiplayer screen
+- Baked addons (logging stripped, configs in .minecraft/config):
+  - [Meteor Rejects](https://github.com/AntiCope/meteor-rejects) from the 26.3 port (AntiCope/meteor-rejects#573, `29cf3f3`), without the seed features (OreSim, `.seed`, `.locate`)
+  - [Meteorist](https://github.com/Zgoly/Meteorist) from `main` (`b728bb0`, 26.3-1)
 - Some personal thinbgs. Check commits..
 
 ## Usage

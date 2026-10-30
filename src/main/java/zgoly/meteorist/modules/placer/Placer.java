@@ -22,14 +22,17 @@ import meteordevelopment.meteorclient.utils.player.FindItemResult;
 import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.world.BlockUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.Block;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.nbt.NbtList;
-import net.minecraft.util.Pair;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import zgoly.meteorist.utils.Tuple;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import zgoly.meteorist.Meteorist;
 import zgoly.meteorist.gui.screens.PlacerScreen;
 import zgoly.meteorist.gui.widgets.WVisibilityCheckbox;
 import zgoly.meteorist.utils.MeteoristUtils;
@@ -41,7 +44,10 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Stream;
 
-import static zgoly.meteorist.Meteorist.*;
+import static meteordevelopment.meteorclient.gui.renderer.GuiRenderer.COPY;
+import static meteordevelopment.meteorclient.gui.renderer.GuiRenderer.EDIT;
+import static zgoly.meteorist.Meteorist.ARROW_DOWN;
+import static zgoly.meteorist.Meteorist.ARROW_UP;
 
 public class Placer extends Module {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
@@ -132,21 +138,22 @@ public class Placer extends Module {
             .defaultValue(true)
             .build()
     );
+
     List<BasePlacer> placers = new ArrayList<>();
 
     private int timer;
     private boolean work;
 
     public Placer() {
-        super(CATEGORY, "placer", "Places blocks in range.");
+        super(Meteorist.CATEGORY, "placer", "Places blocks in range.");
     }
 
-    public NbtCompound toTag() {
-        NbtCompound tag = super.toTag();
+    public CompoundTag toTag() {
+        CompoundTag tag = super.toTag();
 
-        NbtList list = new NbtList();
+        ListTag list = new ListTag();
         for (BasePlacer placer : placers) {
-            NbtCompound mTag = new NbtCompound();
+            CompoundTag mTag = new CompoundTag();
             mTag.put("placer", placer.toTag());
 
             list.add(mTag);
@@ -156,17 +163,18 @@ public class Placer extends Module {
         return tag;
     }
 
-    public Module fromTag(NbtCompound tag) {
+    public Module fromTag(CompoundTag tag) {
         super.fromTag(tag);
 
         placers.clear();
-        NbtList list = tag.getListOrEmpty("placers");
-        for (NbtElement tagII : list) {
-            NbtCompound tagI = (NbtCompound) tagII;
+        ListTag list = tag.getListOrEmpty("placers");
+        for (Tag tagII : list) {
+            CompoundTag tagI = (CompoundTag) tagII;
 
             BasePlacer placer = new BasePlacer();
-            NbtCompound placerTag = tagI.getCompound("placer").orElse(new NbtCompound());
-            if (!placerTag.isEmpty()) placer.fromTag(placerTag);
+            CompoundTag placerTag = (CompoundTag) tagI.get("placer");
+
+            if (placerTag != null) placer.fromTag(placerTag);
 
             placer.settings.registerColorSettings(null);
             placers.add(placer);
@@ -188,12 +196,11 @@ public class Placer extends Module {
         WTable table = list.add(theme.table()).expandX().widget();
 
         for (BasePlacer placer : placers) {
-            WTextBox name = table.add(theme.textBox(placer.name.get(), "Name")).expandX().widget();
+            WTextBox name = table.add(theme.textBox(placer.name.get(), "Placer #" + (placers.indexOf(placer) + 1))).expandX().widget();
             name.tooltip = placer.name.description;
             name.actionOnUnfocused = () -> placer.name.set(name.get());
 
-            WVisibilityCheckbox visible = new WVisibilityCheckbox(placer.visible.get());
-            table.add(visible).widget();
+            WVisibilityCheckbox visible = table.add(new WVisibilityCheckbox(placer.visible.get())).widget();
             visible.tooltip = placer.visible.description;
             visible.action = () -> placer.visible.set(visible.checked);
 
@@ -201,13 +208,14 @@ public class Placer extends Module {
             active.tooltip = placer.active.description;
             active.action = () -> placer.active.set(active.checked);
 
-            WButton edit = table.add(theme.button("Edit")).expandX().widget();
+            WButton edit = table.add(theme.button(EDIT)).widget();
             edit.tooltip = "Edit the placer.";
-            edit.action = () -> mc.setScreen(new PlacerScreen(theme, placer));
+            edit.action = () -> mc.gui.setScreen(new PlacerScreen(theme, placer));
 
-            WContainer moveContainer = table.add(theme.horizontalList()).expandX().widget();
             if (placers.size() > 1) {
+                WContainer moveContainer = table.add(theme.horizontalList()).expandX().widget();
                 int index = placers.indexOf(placer);
+
                 if (index > 0) {
                     WButton moveUp = moveContainer.add(theme.button(ARROW_UP)).expandX().widget();
                     moveUp.tooltip = "Move placer up.";
@@ -249,12 +257,13 @@ public class Placer extends Module {
             table.row();
         }
 
+        if (!placers.isEmpty()) list.add(theme.horizontalSeparator()).expandX();
+
         WTable controls = list.add(theme.table()).expandX().widget();
         WButton create = controls.add(theme.button("New Placer")).expandX().widget();
         create.action = () -> {
             BasePlacer placer = new BasePlacer();
             placer.settings.registerColorSettings(null);
-            placer.name.set("Placer #" + (placers.size() + 1));
             placers.add(placer);
             fillWidget(theme, list);
         };
@@ -266,10 +275,82 @@ public class Placer extends Module {
             fillWidget(theme, list);
         };
 
-        MeteoristConfigManager.configManager(theme, list, this);
+        MeteoristConfigManager.configManager(theme, list, this,
+                MeteoristConfigManager.PresetConfig.of("5x5 Cobblestone Floor", mod -> {
+                    Placer placer = (Placer) mod;
+                    placer.placers.forEach(p -> p.settings.unregisterColorSettings());
+                    placer.placers.clear();
+
+                    BasePlacer floor = new BasePlacer();
+                    floor.name.set("5x5 Cobblestone Floor");
+                    floor.cornerPos1.set(new BlockPos(2, -2, 2));
+                    floor.cornerPos2.set(new BlockPos(-2, -2, -2));
+                    floor.rotateX1.set(false);
+                    floor.rotateX2.set(false);
+                    floor.rotateZ1.set(false);
+                    floor.rotateZ2.set(false);
+                    floor.blocks.set(new ArrayList<>(List.of(Blocks.COBBLESTONE)));
+                    floor.settings.registerColorSettings(null);
+                    placer.placers.add(floor);
+                }),
+                MeteoristConfigManager.PresetConfig.of("Great Wall of China", mod -> {
+                    Placer placer = (Placer) mod;
+                    placer.placers.forEach(p -> p.settings.unregisterColorSettings());
+                    placer.placers.clear();
+
+                    BasePlacer wall = new BasePlacer();
+                    wall.name.set("Great Wall of China");
+                    wall.cornerPos1.set(new BlockPos(0, 4, 4));
+                    wall.cornerPos2.set(new BlockPos(0, -4, -4));
+                    wall.rotateX1.set(false);
+                    wall.rotateX2.set(false);
+                    wall.rotateZ1.set(false);
+                    wall.rotateZ2.set(false);
+                    wall.anchorX1.set(true);
+                    wall.anchorX2.set(true);
+                    wall.blocks.set(new ArrayList<>(List.of(Blocks.STONE_BRICKS)));
+                    wall.settings.registerColorSettings(null);
+                    placer.placers.add(wall);
+                }),
+                MeteoristConfigManager.PresetConfig.of("Facing Wall (7x7)", mod -> {
+                    Placer placer = (Placer) mod;
+                    placer.placers.forEach(p -> p.settings.unregisterColorSettings());
+                    placer.placers.clear();
+
+                    BasePlacer wall = new BasePlacer();
+                    wall.name.set("Facing Wall (7x7)");
+                    wall.cornerPos1.set(new BlockPos(3, 3, 3));
+                    wall.cornerPos2.set(new BlockPos(3, -3, -3));
+                    wall.blocks.set(new ArrayList<>(List.of(Blocks.STONE_BRICKS)));
+                    wall.settings.registerColorSettings(null);
+                    placer.placers.add(wall);
+                }),
+                MeteoristConfigManager.PresetConfig.of("Bunker", mod -> {
+                    Placer placer = (Placer) mod;
+                    placer.placers.forEach(p -> p.settings.unregisterColorSettings());
+                    placer.placers.clear();
+                    placer.placers.add(createStaticPlacer("Floor", -2, -1, -2, 2, -1, 2));
+                    placer.placers.add(createStaticPlacer("Ceiling", -2, 2, -2, 2, 2, 2));
+                    placer.placers.add(createStaticPlacer("Wall N", -2, 0, -2, 2, 1, -2));
+                    placer.placers.add(createStaticPlacer("Wall S", -2, 0, 2, 2, 1, 2));
+                    placer.placers.add(createStaticPlacer("Wall E-N", 2, 0, -1, 2, 1, -1));
+                    placer.placers.add(createStaticPlacer("Wall E-S", 2, 0, 1, 2, 1, 1));
+                    placer.placers.add(createStaticPlacer("Wall W", -2, 0, -1, -2, 1, 1));
+                })
+        );
     }
 
-    private Pair<BlockPos, BlockPos> getPlacePos(BasePlacer placer) {
+    private static BasePlacer createStaticPlacer(String name, int x1, int y1, int z1, int x2, int y2, int z2) {
+        BasePlacer placer = new BasePlacer();
+        placer.name.set(name);
+        placer.cornerPos1.set(new BlockPos(x1, y1, z1));
+        placer.cornerPos2.set(new BlockPos(x2, y2, z2));
+        placer.blocks.set(new ArrayList<>(List.of(Blocks.OBSIDIAN)));
+        placer.settings.registerColorSettings(null);
+        return placer;
+    }
+
+    private Tuple<BlockPos, BlockPos> getPlacePos(BasePlacer placer) {
         BlockPos finalPos1 = rotateBlockPos(placer.cornerPos1.get(), placer.rotateY1.get());
 
         if (!placer.rotateX1.get())
@@ -277,7 +358,7 @@ public class Placer extends Module {
         if (!placer.rotateZ1.get())
             finalPos1 = new BlockPos(finalPos1.getX(), finalPos1.getY(), placer.cornerPos1.get().getZ());
 
-        finalPos1 = finalPos1.add(mc.player.getBlockPos());
+        finalPos1 = finalPos1.offset(mc.player.blockPosition());
 
         if (placer.anchorX1.get())
             finalPos1 = new BlockPos(placer.cornerPos1.get().getX(), finalPos1.getY(), finalPos1.getZ());
@@ -286,7 +367,7 @@ public class Placer extends Module {
         if (placer.anchorZ1.get())
             finalPos1 = new BlockPos(finalPos1.getX(), finalPos1.getY(), placer.cornerPos1.get().getZ());
 
-        finalPos1 = finalPos1.add(placer.cornerAnchorPos1.get());
+        finalPos1 = finalPos1.offset(placer.cornerAnchorPos1.get());
 
         BlockPos finalPos2 = rotateBlockPos(placer.cornerPos2.get(), placer.rotateY2.get());
 
@@ -295,7 +376,7 @@ public class Placer extends Module {
         if (!placer.rotateZ2.get())
             finalPos2 = new BlockPos(finalPos2.getX(), finalPos2.getY(), placer.cornerPos2.get().getZ());
 
-        finalPos2 = finalPos2.add(mc.player.getBlockPos());
+        finalPos2 = finalPos2.offset(mc.player.blockPosition());
 
         if (placer.anchorX2.get())
             finalPos2 = new BlockPos(placer.cornerPos2.get().getX(), finalPos2.getY(), finalPos2.getZ());
@@ -304,13 +385,13 @@ public class Placer extends Module {
         if (placer.anchorZ2.get())
             finalPos2 = new BlockPos(finalPos2.getX(), finalPos2.getY(), placer.cornerPos2.get().getZ());
 
-        finalPos2 = finalPos2.add(placer.cornerAnchorPos2.get());
+        finalPos2 = finalPos2.offset(placer.cornerAnchorPos2.get());
 
-        return new Pair<>(finalPos1, finalPos2);
+        return new Tuple<>(finalPos1, finalPos2);
     }
 
-    private Stream<BlockPos> getPlaceStream(Pair<BlockPos, BlockPos> finalPos) {
-        return BlockPos.stream(finalPos.getLeft(), finalPos.getRight());
+    private Stream<BlockPos> getPlaceStream(Tuple<BlockPos, BlockPos> finalPos) {
+        return BlockPos.betweenClosedStream(finalPos.getA(), finalPos.getB());
     }
 
     @Override
@@ -332,11 +413,11 @@ public class Placer extends Module {
                 if (placer.active.get()) {
                     // Block pos sorting and other stuff
                     List<BlockPos> blockPosList = new ArrayList<>();
-                    Pair<BlockPos, BlockPos> finalPos = getPlacePos(placer);
-                    BlockPos.stream(finalPos.getLeft(), finalPos.getRight()).filter(blockPos ->
-                            (!limitRange.get() || !(blockPos.toCenterPos().distanceTo(mc.player.getEyePos()) > maxRange.get()))
-                    ).forEach(blockPos -> blockPosList.add(new BlockPos(blockPos)));
-                    blockPosList.sort(Comparator.comparingDouble(blockPos -> blockPos.toCenterPos().distanceTo(mc.player.getEyePos())));
+                    Tuple<BlockPos, BlockPos> finalPos = getPlacePos(placer);
+                    BlockPos.betweenClosedStream(finalPos.getA(), finalPos.getB()).filter(blockPos ->
+                            (!limitRange.get() || !(Vec3.atCenterOf(blockPos).distanceTo(mc.player.getEyePosition()) > maxRange.get()))
+                    ).forEach(blockPos -> blockPosList.add(blockPos.immutable()));
+                    blockPosList.sort(Comparator.comparingDouble(blockPos -> Vec3.atCenterOf(blockPos).distanceTo(mc.player.getEyePosition())));
 
                     for (BlockPos blockPos : blockPosList) {
                         if (useDelay.get() && loopCount >= maxBlocksPerTick.get()) {
@@ -377,7 +458,7 @@ public class Placer extends Module {
     // Probably the laziest way to do this
     public BlockPos rotateBlockPos(BlockPos pos, boolean rotateY) {
         if (rotateY) {
-            float pitch = mc.player.getPitch();
+            float pitch = mc.player.getXRot();
             if (pitch > 45) {
                 pos = new BlockPos(pos.getY(), -pos.getX(), pos.getZ());
             } else if (pitch < -45) {
@@ -385,7 +466,7 @@ public class Placer extends Module {
             }
         }
 
-        Direction direction = Direction.fromHorizontalDegrees(mc.player.getYaw());
+        Direction direction = Direction.fromYRot(mc.player.getYRot());
         return switch (direction) {
             case NORTH -> new BlockPos(pos.getZ(), pos.getY(), -pos.getX());
             case SOUTH -> new BlockPos(-pos.getZ(), pos.getY(), pos.getX());
@@ -401,8 +482,8 @@ public class Placer extends Module {
                 if (renderEachBlock.get()) {
                     getPlaceStream(getPlacePos(placer)).forEach(blockPos -> event.renderer.box(blockPos, placer.sideColor.get(), placer.lineColor.get(), ShapeMode.Both, 0));
                 } else {
-                    Pair<BlockPos, BlockPos> finalPos = getPlacePos(placer);
-                    event.renderer.box(Box.enclosing(finalPos.getLeft(), finalPos.getRight()), placer.sideColor.get(), placer.lineColor.get(), ShapeMode.Both, 0);
+                    Tuple<BlockPos, BlockPos> finalPos = getPlacePos(placer);
+                    event.renderer.box(AABB.encapsulatingFullBlocks(finalPos.getA(), finalPos.getB()), placer.sideColor.get(), placer.lineColor.get(), ShapeMode.Both, 0);
                 }
             }
         }

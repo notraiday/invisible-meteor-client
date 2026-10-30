@@ -15,11 +15,13 @@ import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.systems.modules.Categories;
 import meteordevelopment.meteorclient.systems.modules.Module;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.block.entity.SignBlockEntity;
-import net.minecraft.client.gui.screen.ingame.AbstractSignEditScreen;
-import net.minecraft.network.packet.c2s.play.UpdateSignC2SPacket;
+import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
+import net.minecraft.network.protocol.game.ServerboundSignUpdatePacket;
+import net.minecraft.world.level.block.entity.SignBlockEntity;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 
 import java.util.ArrayDeque;
+import java.util.List;
 import java.util.Queue;
 
 public class AutoSign extends Module {
@@ -34,11 +36,12 @@ public class AutoSign extends Module {
         .build()
     );
 
-    private String[] text;
+    private List<String> text;
+    private SignTextSlot slot;
 
     // Some servers (e.g., 2b2t) don't like the sign packet being sent too soon after the swing or block click packets, so queue them.
     // Delaying by sleeping in the event handler may be fine for a single sign, but would visibly lag the UI at a larger scale.
-    private final Queue<UpdateSignC2SPacket> queue = new ArrayDeque<>();
+    private final Queue<ServerboundSignUpdatePacket> queue = new ArrayDeque<>();
     private int timer = 0;
 
     public AutoSign() {
@@ -48,6 +51,7 @@ public class AutoSign extends Module {
     @Override
     public void onDeactivate() {
         text = null;
+        slot = null;
     }
 
     @EventHandler
@@ -65,25 +69,26 @@ public class AutoSign extends Module {
             return;
         }
 
-        mc.player.networkHandler.sendPacket(queue.poll());
+        mc.player.connection.send(queue.poll());
 
         timer = 0;
     }
 
     @EventHandler
     private void onSendPacket(PacketEvent.Send event) {
-        if (!(event.packet instanceof UpdateSignC2SPacket)) return;
+        if (!(event.packet instanceof ServerboundSignUpdatePacket signPacket)) return;
 
-        text = ((UpdateSignC2SPacket) event.packet).getText();
+        text = signPacket.lines();
+        slot = signPacket.slot();
     }
 
     @EventHandler
     private void onOpenScreen(OpenScreenEvent event) {
-        if (!(event.screen instanceof AbstractSignEditScreen) || text == null) return;
+        if (!(event.screen instanceof AbstractSignEditScreen) || text == null || slot == null) return;
 
         SignBlockEntity sign = ((AbstractSignEditScreenAccessor) event.screen).meteor$getSign();
 
-        queue.add(new UpdateSignC2SPacket(sign.getPos(), true, text[0], text[1], text[2], text[3]));
+        queue.add(new ServerboundSignUpdatePacket(sign.getBlockPos(), text, slot));
 
         event.cancel();
     }

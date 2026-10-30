@@ -19,7 +19,6 @@ public class AutoFeed extends Module {
             .defaultValue("/feed")
             .build()
     );
-
     private final Setting<Integer> hungerLevel = sgGeneral.add(new IntSetting.Builder()
             .name("hunger-level")
             .description("Hunger level at which to send the command.")
@@ -28,7 +27,6 @@ public class AutoFeed extends Module {
             .sliderRange(1, 20)
             .build()
     );
-
     private final Setting<Integer> delay = sgGeneral.add(new IntSetting.Builder()
             .name("delay")
             .description("Delay after sending a command in ticks (20 ticks = 1 sec).")
@@ -51,7 +49,7 @@ public class AutoFeed extends Module {
 
     @EventHandler
     private void onTick(TickEvent.Post event) {
-        if (timer >= delay.get() && mc.player.getHungerManager().getFoodLevel() <= hungerLevel.get()) {
+        if (timer >= delay.get() && mc.player.getFoodData().getFoodLevel() <= hungerLevel.get()) {
             ChatUtils.sendPlayerMsg(feedCommand.get());
             timer = 0;
         } else timer++;
